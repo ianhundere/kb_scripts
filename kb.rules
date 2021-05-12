@@ -1,0 +1,2 @@
+SUBSYSTEM=="input", ACTION=="add", SUBSYSTEMS=="usb", ATTRS{idVendor}=="4250", ATTRS{idProduct}=="4d4c", RUN+="/home/ianfundere/bin/connect"
+SUBSYSTEM=="input", ACTION=="remove", SUBSYSTEMS=="usb", ATTRS{idVendor}=="4250", ATTRS{idProduct}=="4d4c", RUN+="/home/ianfundere/bin/disconnect"
