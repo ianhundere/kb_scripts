@@ -1,0 +1,37 @@
+<!-- place in /Library/LaunchDaemons and run sudo launchctl start com.hidutilKeyMapping -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.hidutilKeyMapping</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/hidutil</string>
+      <string>property</string>
+      <string>--matching</string>
+      <string>{"VendorID": 0x05ac, "ProductID": 0x0341}</string>
+      <string>--set</string>
+      <string>{
+        "UserKeyMapping": [
+            {
+              "HIDKeyboardModifierMappingSrc": 0x70000002A,
+              "HIDKeyboardModifierMappingDst": 0x700000031
+            },
+            {
+              "HIDKeyboardModifierMappingSrc": 0x700000031,
+              "HIDKeyboardModifierMappingDst": 0x70000002A
+            },
+            {
+              "HIDKeyboardModifierMappingSrc": 0x700000039,
+              "HIDKeyboardModifierMappingDst": 0x7000000E3
+            }
+        ]
+      }</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+  </dict>
+</plist>
