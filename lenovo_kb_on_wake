@@ -1,5 +1,5 @@
 #!/bin/sh
-
+# place in /lib/systemd/system-sleep
 case "$1" in
     post)
         /home/ianfundere/bin/lenovo_kb
