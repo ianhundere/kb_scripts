@@ -4,7 +4,7 @@
 sleep 1
 
 DISPLAY=":0.0"
-HOME=/home/ianfundere
+HOME=/home/$USER
 XAUTHORITY=$HOME/.Xauthority
 export DISPLAY XAUTHORITY HOME
 

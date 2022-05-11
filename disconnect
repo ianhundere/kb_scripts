@@ -1,2 +1,2 @@
 #!/bin/bash
-/home/ianfundere/bin/lenovo_kb &
+/home/$USER/bin/lenovo_kb &

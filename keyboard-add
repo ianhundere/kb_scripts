@@ -1,7 +1,7 @@
 #!/bin/bash
 sleep 1
 DISPLAY=":0.0"
-HOME=/home/ianfundere/
+HOME=/home/$USER/
 XAUTHORITY=$HOME/.Xauthority         # if you use GDM, try /run/user/1000/gdm/Xauthority here
 export DISPLAY XAUTHORITY HOME
 xinput list --id-only 'AT Translated Set 2 keyboard' > $HOME/.keyboardid

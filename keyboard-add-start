@@ -1,2 +1,2 @@
 #!/bin/bash
-sh /home/ianfundere/bin/keyboard-add &
+sh /home/$USER/bin/keyboard-add &

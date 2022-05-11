@@ -1,2 +1,2 @@
 #!/bin/bash
-sh /home/ianfundere/bin/keyboard-remove &
+sh /home/$USER/bin/keyboard-remove &

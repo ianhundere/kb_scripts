@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=doro_work
-Exec=/home/ianfundere/bin/doro_kb
+Exec=/home/$USER/bin/doro_kb
 Comment="make doro kb work"
 X-GNOME-Autostart-enabled=true
