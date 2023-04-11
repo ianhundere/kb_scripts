@@ -3,32 +3,36 @@
 # https://itectec.com/ubuntu/ubuntu-how-to-automatically-change-the-system-keyboard-layout-when-plugging-in-an-external-keyboard/
 sleep 1
 
-DISPLAY=":0.0"
-HOME=/home/$USER
-XAUTHORITY=$HOME/.Xauthority
-export DISPLAY XAUTHORITY HOME
+while sleep 10s; do
+    DISPLAY=":0.0"
+    HOME=/home/$USER
+    XAUTHORITY=$HOME/.Xauthority
+    export DISPLAY XAUTHORITY HOME
 
-remote_id=$(
-    xinput list |
-        grep -Ev '(mapped|forwarded)' |
-        sed -n 's/.*AT Translated Set 2 keyboard*.*id=\([0-9]*\).*keyboard.*/\1/p'
-)
-[ "$remote_id" ] || exit
+    remote_id=$(
+        xinput list |
+            grep -Ev '(mapped|forwarded)' |
+            sed -n 's/.*AT Translated Set 2 keyboard*.*id=\([0-9]*\).*keyboard.*/\1/p'
+    )
+    [ "$remote_id" ] || exit
 
-mkdir -p /tmp/xkb/symbols
+    mkdir -p /tmp/xkb/symbols
 
-cat >/tmp/xkb/symbols/custom_lenovo <<\EOF
+    cat >/tmp/xkb/symbols/custom_lenovo <<\EOF
 
 xkb_symbols "remote" {
     key <LWIN> { [ Alt_L, Meta_L ] };
     key <RWIN> { [ Alt_R, Meta_R ] };
     key <LALT> { [ Super_L ] };
-    key <CAPS> { [ Super_L ] };
+    key <RALT> { [ Super_R ] };
     key <BKSP> { [ backslash, bar ] };
     key <BKSL> { [ BackSpace, BackSpace ] };
 };
 EOF
 
-setxkbmap -device $remote_id -print |
-    sed 's/\(xkb_symbols.*\)"/\1+custom_lenovo(remote)"/' |
-    xkbcomp -I/tmp/xkb -i $remote_id -synch - $DISPLAY 2>/dev/null
+    chown ianfundere:ianfundere /tmp/xkb/symbols/custom_lenovo
+
+    setxkbmap -device $remote_id -print |
+        sed 's/\(xkb_symbols.*\)"/\1+custom_lenovo(remote)"/' |
+        xkbcomp -I/tmp/xkb -i $remote_id -synch - $DISPLAY 2>/dev/null
+done

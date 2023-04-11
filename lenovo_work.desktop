@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=lenovo_work
-Exec=/home/$USER/bin/lenovo_kb
-Comment="make lenovo kb work"
-X-GNOME-Autostart-enabled=true
