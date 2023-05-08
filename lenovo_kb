@@ -3,6 +3,7 @@
 # https://itectec.com/ubuntu/ubuntu-how-to-automatically-change-the-system-keyboard-layout-when-plugging-in-an-external-keyboard/
 sleep 1
 
+
 while sleep 10s; do
     DISPLAY=":0.0"
     HOME=/home/$USER
