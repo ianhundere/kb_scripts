@@ -1,0 +1,3 @@
+[Layout]
+Options=ctrl:nocaps,altwin:swap_alt_win
+ResetOldOptions=true
