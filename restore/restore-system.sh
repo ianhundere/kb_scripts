@@ -442,6 +442,47 @@ install_desktop_apps() {
         libreoffice-fresh gimp inkscape kdenlive obs-studio
 }
 
+install_flatpak_apps() {
+    print_msg "$BLUE" "installing flatpak apps..."
+
+    # install flatpak if missing
+    if ! command -v flatpak &> /dev/null; then
+        install_pkgs "flatpak" flatpak
+    fi
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would install flatpak apps"
+        return 0
+    fi
+
+    # add flathub repo
+    if ! flatpak remote-list | grep -q flathub; then
+        print_msg "$YELLOW" "adding flathub repo..."
+        sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    fi
+
+    # flatpak apps to install
+    local flatpak_apps=(
+        "org.mozilla.Thunderbird"
+        "ch.protonmail.protonmail-bridge"
+        "com.protonvpn.www"
+        "com.ulduzsoft.Birdtray"
+        "com.vixalien.sticky"
+        "io.github.martchus.syncthingtray"
+    )
+
+    for app in "${flatpak_apps[@]}"; do
+        if ! flatpak list --app | grep -q "$app"; then
+            print_msg "$YELLOW" "installing $app..."
+            flatpak install -y flathub "$app" 2>/dev/null || log_warning "failed to install $app"
+        else
+            print_msg "$GREEN" "✓ $app already installed"
+        fi
+    done
+
+    print_msg "$GREEN" "flatpak apps installed!"
+}
+
 install_music_production() {
     print_msg "$BLUE" "installing music production stack..."
     install_pkgs "music production" \
@@ -721,9 +762,10 @@ install_yay_and_aur() {
         flux-bin
         clamtk
         python-llfuse
-        bitwig-studio-beta
+        bitwig-studio
         ocenaudio-bin
         sononym
+        stickee
     )
 
     if [[ "$DRY_RUN" = "true" ]]; then
@@ -1020,6 +1062,7 @@ full_setup() {
     install_base_tools
     install_lean_kde
     install_desktop_apps
+    install_flatpak_apps
     install_music_production
     install_yay_and_aur
 
@@ -1030,10 +1073,13 @@ full_setup() {
     if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would install languages & containers"
     else
-        # Languages & Containers
-        sudo pacman -S --needed --noconfirm python python-pip go rust docker docker-compose kubectl
+        # languages & containers
+        sudo pacman -S --needed --noconfirm python python-pip go rust docker docker-compose kubectl npm github-cli
         sudo usermod -aG docker $RESTORE_USER
         sudo systemctl enable docker
+
+        # enable syncthing user service
+        systemctl --user enable syncthing.service
 
         sudo ln -sf /usr/bin/vim /usr/bin/vi
     fi
@@ -1061,6 +1107,7 @@ Commands:
   restore-app-configs Restore application configs (Calibre, Obsidian, VS Code, etc.)
   restore-music       Restore music production (Bitwig, plugins, wine)
   install-apps        Install desktop applications
+  install-flatpaks    Install flatpak applications (Thunderbird, ProtonVPN, etc.)
   install-music       Install music production stack (yabridge, wine)
   setup-power         Configure T14s power management
   setup-security      Configure firewall + SSH hardening
@@ -1102,6 +1149,7 @@ case "$1" in
     restore-app-configs) restore_app_configs ;;
     restore-music) restore_music_production ;;
     install-apps) install_desktop_apps ;;
+    install-flatpaks) install_flatpak_apps ;;
     install-music) install_music_production ;;
     setup-power) setup_t14s_power ;;
     setup-security) setup_security ;;
