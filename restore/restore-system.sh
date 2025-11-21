@@ -34,12 +34,12 @@ log_warning() {
 }
 
 check_passphrase() {
-    if [ -z "$BORG_REPO" ]; then
+    if [[ -z "$BORG_REPO" ]]; then
         log_error "BORG_REPO not set."
         echo "Run: export BORG_REPO='user@host:repo'"
         exit 1
     fi
-    if [ -z "$BORG_PASSPHRASE" ]; then
+    if [[ -z "$BORG_PASSPHRASE" ]]; then
         log_error "BORG_PASSPHRASE not set."
         echo "Run: export BORG_PASSPHRASE='your-passphrase'"
         exit 1
@@ -48,7 +48,7 @@ check_passphrase() {
 
 get_latest_archive() {
     local archive=$(borg list "$BORG_REPO" --last 1 --short 2>/dev/null | tail -1)
-    if [ -z "$archive" ]; then
+    if [[ -z "$archive" ]]; then
         log_error "No backups found in repository: $BORG_REPO"
         exit 1
     fi
@@ -57,10 +57,7 @@ get_latest_archive() {
 
 cleanup_temp() {
     local temp_dir="$1"
-    if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
-        cd ~
-        rm -rf "$temp_dir"
-    fi
+    [[ -n "$temp_dir" && -d "$temp_dir" ]] && rm -rf "$temp_dir"
 }
 
 wait_for_process_exit() {
@@ -84,7 +81,7 @@ safe_extract() {
     shift 2
     local paths=("$@")
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would extract: ${paths[*]}"
         return 0
     fi
@@ -96,6 +93,46 @@ safe_extract() {
             log_warning "Could not extract: $path (may not exist in backup)"
         fi
     done
+}
+
+# dry run wrapper - executes command only if not in dry run mode
+run_cmd() {
+    local desc="$1"
+    shift
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] $desc"
+        return 0
+    fi
+
+    "$@"
+}
+
+# copy file or directory from backup extraction to home
+copy_if_exists() {
+    local src="home/$RESTORE_USER/$1"
+    local dest="${2:-~/$1}"
+
+    if [[ -d "$src" ]]; then
+        rsync -av "$src/" "$dest/" 2>/dev/null || true
+    elif [[ -f "$src" ]]; then
+        mkdir -p "$(dirname "$dest")"
+        cp "$src" "$dest" 2>/dev/null || true
+    fi
+}
+
+# install packages with dry run support
+install_pkgs() {
+    local desc="$1"
+    shift
+    local pkgs=("$@")
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would install $desc: ${pkgs[*]}"
+        return 0
+    fi
+
+    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
 # --- RESTORE FUNCTIONS ---
@@ -115,19 +152,16 @@ restore_shell_config() {
         "home/$RESTORE_USER/.p10k.zsh" \
         "home/$RESTORE_USER/powerlevel10k"
 
-    # Copy files if they exist
-    [ -f "home/$RESTORE_USER/.zshrc" ] && cp "home/$RESTORE_USER/.zshrc" ~/
-    [ -f "home/$RESTORE_USER/.p10k.zsh" ] && cp "home/$RESTORE_USER/.p10k.zsh" ~/
-    [ -f "home/$RESTORE_USER/.zsh_history" ] && cp "home/$RESTORE_USER/.zsh_history" ~/
-    [ -d "home/$RESTORE_USER/powerlevel10k" ] && cp -r "home/$RESTORE_USER/powerlevel10k" ~/
+    # copy files if exist
+    copy_if_exists ".zshrc"
+    copy_if_exists ".p10k.zsh"
+    copy_if_exists ".zsh_history"
+    copy_if_exists "powerlevel10k"
 
-    # Install autosuggestions if missing
+    # install autosuggestions if missing
     if ! pacman -Qi zsh-autosuggestions &> /dev/null; then
-        if [ "$DRY_RUN" = "true" ]; then
-            print_msg "$BLUE" "[DRY RUN] Would install: zsh-autosuggestions"
-        else
+        run_cmd "would install zsh-autosuggestions" \
             sudo pacman -S --needed --noconfirm zsh-autosuggestions
-        fi
     fi
 
     print_msg "$GREEN" "Shell restored!"
@@ -157,7 +191,7 @@ restore_kde_config() {
 
     safe_extract "$BORG_REPO" "$archive" "${kde_files[@]}"
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would stop Plasma and copy configs"
         return 0
     fi
@@ -168,12 +202,12 @@ restore_kde_config() {
     wait_for_process_exit "plasmashell" 10
 
     # Copy configs
-    if [ -d "home/$RESTORE_USER/.config" ]; then
+    if [[ -d "home/$RESTORE_USER/.config" ]]; then
         cp -r "home/$RESTORE_USER/.config/"* ~/.config/ 2>/dev/null || true
     fi
 
-    if [ -d "home/$RESTORE_USER/.local/share" ]; then
-        [ -d ~/.local/share ] || mkdir -p ~/.local/share
+    if [[ -d "home/$RESTORE_USER/.local/share" ]]; then
+        [[ -d ~/.local/share ]] || mkdir -p ~/.local/share
         cp -r "home/$RESTORE_USER/.local/share/"* ~/.local/share/ 2>/dev/null || true
     fi
 
@@ -203,36 +237,36 @@ restore_misc_configs() {
         "home/$RESTORE_USER/.mozilla" \
         "home/$RESTORE_USER/.config/systemd"
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would copy git/ssh/gpg/dev configs"
         return 0
     fi
 
-    [ -f "home/$RESTORE_USER/.gitconfig" ] && cp "home/$RESTORE_USER/.gitconfig" ~/
+    [[ -f "home/$RESTORE_USER/.gitconfig" ]] && cp "home/$RESTORE_USER/.gitconfig" ~/
 
-    if [ -f "home/$RESTORE_USER/.ssh/config" ]; then
-        [ -d ~/.ssh ] || mkdir -p ~/.ssh
+    if [[ -f "home/$RESTORE_USER/.ssh/config" ]]; then
+        [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
         cp "home/$RESTORE_USER/.ssh/config" ~/.ssh/
         chmod 600 ~/.ssh/config
     fi
 
-    if [ -d "home/$RESTORE_USER/.gnupg" ]; then
-        [ -d ~/.gnupg ] && mv ~/.gnupg ~/.gnupg.bak.$(date +%s)
+    if [[ -d "home/$RESTORE_USER/.gnupg" ]]; then
+        [[ -d ~/.gnupg ]] && mv ~/.gnupg ~/.gnupg.bak.$(date +%s)
         cp -r "home/$RESTORE_USER/.gnupg" ~/
         chmod 700 ~/.gnupg
     fi
 
     # Dev environments
-    [ -d "home/$RESTORE_USER/.docker" ] && cp -r "home/$RESTORE_USER/.docker" ~/
-    [ -d "home/$RESTORE_USER/.kube" ] && cp -r "home/$RESTORE_USER/.kube" ~/
-    [ -d "home/$RESTORE_USER/.pyenv" ] && rsync -av "home/$RESTORE_USER/.pyenv/" ~/.pyenv/
-    [ -d "home/$RESTORE_USER/.nvm" ] && rsync -av "home/$RESTORE_USER/.nvm/" ~/.nvm/
-    [ -d "home/$RESTORE_USER/.npm" ] && rsync -av "home/$RESTORE_USER/.npm/" ~/.npm/
-    [ -d "home/$RESTORE_USER/.arduino15" ] && rsync -av "home/$RESTORE_USER/.arduino15/" ~/.arduino15/
-    [ -d "home/$RESTORE_USER/.mozilla" ] && rsync -av "home/$RESTORE_USER/.mozilla/" ~/.mozilla/
+    [[ -d "home/$RESTORE_USER/.docker" ]] && cp -r "home/$RESTORE_USER/.docker" ~/
+    [[ -d "home/$RESTORE_USER/.kube" ]] && cp -r "home/$RESTORE_USER/.kube" ~/
+    [[ -d "home/$RESTORE_USER/.pyenv" ]] && rsync -av "home/$RESTORE_USER/.pyenv/" ~/.pyenv/
+    [[ -d "home/$RESTORE_USER/.nvm" ]] && rsync -av "home/$RESTORE_USER/.nvm/" ~/.nvm/
+    [[ -d "home/$RESTORE_USER/.npm" ]] && rsync -av "home/$RESTORE_USER/.npm/" ~/.npm/
+    [[ -d "home/$RESTORE_USER/.arduino15" ]] && rsync -av "home/$RESTORE_USER/.arduino15/" ~/.arduino15/
+    [[ -d "home/$RESTORE_USER/.mozilla" ]] && rsync -av "home/$RESTORE_USER/.mozilla/" ~/.mozilla/
 
     # Systemd user services
-    if [ -d "home/$RESTORE_USER/.config/systemd" ]; then
+    if [[ -d "home/$RESTORE_USER/.config/systemd" ]]; then
         mkdir -p ~/.config/systemd
         cp -r "home/$RESTORE_USER/.config/systemd/"* ~/.config/systemd/
         print_msg "$YELLOW" "Restored systemd user services (protonvpn_reconnect, etc.)"
@@ -271,7 +305,7 @@ restore_data() {
 
     print_msg "$YELLOW" "Extracting data directories (may take a while)..."
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would extract: ${data_dirs[*]}"
         return 0
     fi
@@ -288,7 +322,7 @@ restore_data() {
 
     # Function to safely move directories
     move_if_exists() {
-        if [ -d "home/$RESTORE_USER/$1" ]; then
+        if [[ -d "home/$RESTORE_USER/$1" ]]; then
             rsync -av "home/$RESTORE_USER/$1/" ~/"$1"/
         fi
     }
@@ -311,7 +345,7 @@ restore_data() {
     move_if_exists "new-wineprefix"
 
     # Make bin scripts executable
-    if [ -d ~/bin ]; then
+    if [[ -d ~/bin ]]; then
         chmod +x ~/bin/* 2>/dev/null || true
     fi
 
@@ -338,14 +372,14 @@ restore_app_configs() {
 
     safe_extract "$BORG_REPO" "$archive" "${app_configs[@]}"
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would copy application configs"
         return 0
     fi
 
     # Copy configs if they exist
     for config in calibre obsidian syncthing Code vscode-mssql vscode-sqltools; do
-        if [ -d "home/$RESTORE_USER/.config/$config" ]; then
+        if [[ -d "home/$RESTORE_USER/.config/$config" ]]; then
             mkdir -p ~/.config/
             cp -r "home/$RESTORE_USER/.config/$config" ~/.config/
             print_msg "$GREEN" "✓ Restored: $config config"
@@ -358,87 +392,42 @@ restore_app_configs() {
 # --- INSTALL FUNCTIONS ---
 
 install_base_tools() {
-    print_msg "$BLUE" "Installing Base/Dev Tools..."
-    local pkgs=(
-        base-devel git vim curl wget rsync less
-        traceroute inetutils tcpdump net-tools bind nmap
-        clamav htop btop tree ripgrep fd bat fzf jq yq
+    print_msg "$BLUE" "installing base/dev tools..."
+    install_pkgs "base/dev tools" \
+        base-devel git vim curl wget rsync less \
+        traceroute inetutils tcpdump net-tools bind nmap \
+        clamav htop btop tree ripgrep fd bat fzf jq yq \
         openssh borg ufw rkhunter
-    )
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_msg "$BLUE" "[DRY RUN] Would install: ${pkgs[*]}"
-        return 0
-    fi
-
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
 install_lean_kde() {
-    print_msg "$BLUE" "Installing Lean KDE..."
-    local pkgs=(
-        plasma-meta plasma-workspace
-        dolphin konsole kate ark gwenview spectacle okular kcalc
-        kwalletmanager ffmpegthumbs
-        xdg-utils bluez-utils cups
+    print_msg "$BLUE" "installing lean kde..."
+    install_pkgs "lean kde" \
+        plasma-meta plasma-workspace \
+        dolphin konsole kate ark gwenview spectacle okular kcalc \
+        kwalletmanager ffmpegthumbs \
+        xdg-utils bluez-utils cups \
         zsh-completions
-    )
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_msg "$BLUE" "[DRY RUN] Would install: ${pkgs[*]}"
-        return 0
-    fi
-
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
 install_desktop_apps() {
-    print_msg "$BLUE" "Installing Desktop Apps & Audio Stack..."
-    local pkgs=(
-        firefox chromium
-        code
-        obsidian
-        bitwarden
-        signal-desktop
-        calibre
-        syncthing
-        discord
-        audacity
-        steam
-
-        # Audio Stack
-        pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber pavucontrol alsa-utils
-        vlc
+    print_msg "$BLUE" "installing desktop apps & audio..."
+    install_pkgs "desktop apps" \
+        firefox chromium code obsidian bitwarden signal-desktop \
+        calibre syncthing discord audacity steam \
+        pipewire pipewire-alsa pipewire-pulse pipewire-jack \
+        wireplumber pavucontrol alsa-utils vlc \
         libreoffice-fresh gimp inkscape kdenlive obs-studio
-    )
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_msg "$BLUE" "[DRY RUN] Would install: ${pkgs[*]}"
-        return 0
-    fi
-
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
 install_music_production() {
-    print_msg "$BLUE" "Installing Music Production Stack..."
+    print_msg "$BLUE" "installing music production stack..."
+    install_pkgs "music production" \
+        yabridge yabridgectl wine-staging jack2 qjackctl rtirq
 
-    local pkgs=(
-        yabridge yabridgectl wine-staging
-        jack2 qjackctl
-        rtirq
-    )
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_msg "$BLUE" "[DRY RUN] Would install: ${pkgs[*]}"
-        return 0
-    fi
-
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
-
-    # Configure audio realtime limits (fixes yabridge memlock warning)
-    print_msg "$YELLOW" "Configuring audio realtime limits..."
-    sudo tee /etc/security/limits.d/audio.conf > /dev/null <<'EOF'
+    # audio realtime limits (fixes yabridge memlock warning)
+    run_cmd "would configure audio realtime limits" \
+        sudo tee /etc/security/limits.d/audio.conf > /dev/null <<'EOF'
 # Audio realtime limits for yabridge and audio production
 @audio   -  rtprio     95
 @audio   -  memlock    unlimited
@@ -481,7 +470,7 @@ restore_music_production() {
 
     print_msg "$YELLOW" "This may take a while (Bitwig + Wine prefix ~11GB)..."
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would extract music production files"
         return 0
     fi
@@ -497,25 +486,25 @@ restore_music_production() {
     print_msg "$BLUE" "Copying music production files..."
 
     # Copy configs
-    [ -d "home/$RESTORE_USER/.config/yabridgectl" ] && cp -r "home/$RESTORE_USER/.config/yabridgectl" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/wireplumber" ] && cp -r "home/$RESTORE_USER/.config/wireplumber" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/pipewire" ] && cp -r "home/$RESTORE_USER/.config/pipewire" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/beets" ] && cp -r "home/$RESTORE_USER/.config/beets" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/htop" ] && cp -r "home/$RESTORE_USER/.config/htop" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/cheat" ] && cp -r "home/$RESTORE_USER/.config/cheat" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/REAPER" ] && cp -r "home/$RESTORE_USER/.config/REAPER" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/gh" ] && cp -r "home/$RESTORE_USER/.config/gh" ~/.config/
-    [ -d "home/$RESTORE_USER/.config/helm" ] && cp -r "home/$RESTORE_USER/.config/helm" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/yabridgectl" ]] && cp -r "home/$RESTORE_USER/.config/yabridgectl" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/wireplumber" ]] && cp -r "home/$RESTORE_USER/.config/wireplumber" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/pipewire" ]] && cp -r "home/$RESTORE_USER/.config/pipewire" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/beets" ]] && cp -r "home/$RESTORE_USER/.config/beets" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/htop" ]] && cp -r "home/$RESTORE_USER/.config/htop" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/cheat" ]] && cp -r "home/$RESTORE_USER/.config/cheat" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/REAPER" ]] && cp -r "home/$RESTORE_USER/.config/REAPER" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/gh" ]] && cp -r "home/$RESTORE_USER/.config/gh" ~/.config/
+    [[ -d "home/$RESTORE_USER/.config/helm" ]] && cp -r "home/$RESTORE_USER/.config/helm" ~/.config/
 
     # Copy plugins & DAW
-    [ -d "home/$RESTORE_USER/.BitwigStudio" ] && rsync -av "home/$RESTORE_USER/.BitwigStudio/" ~/.BitwigStudio/
-    [ -d "home/$RESTORE_USER/.wine" ] && rsync -av "home/$RESTORE_USER/.wine/" ~/.wine/
-    [ -d "home/$RESTORE_USER/.vst" ] && rsync -av "home/$RESTORE_USER/.vst/" ~/.vst/
-    [ -d "home/$RESTORE_USER/.vst3" ] && rsync -av "home/$RESTORE_USER/.vst3/" ~/.vst3/
-    [ -d "home/$RESTORE_USER/.clap" ] && rsync -av "home/$RESTORE_USER/.clap/" ~/.clap/
+    [[ -d "home/$RESTORE_USER/.BitwigStudio" ]] && rsync -av "home/$RESTORE_USER/.BitwigStudio/" ~/.BitwigStudio/
+    [[ -d "home/$RESTORE_USER/.wine" ]] && rsync -av "home/$RESTORE_USER/.wine/" ~/.wine/
+    [[ -d "home/$RESTORE_USER/.vst" ]] && rsync -av "home/$RESTORE_USER/.vst/" ~/.vst/
+    [[ -d "home/$RESTORE_USER/.vst3" ]] && rsync -av "home/$RESTORE_USER/.vst3/" ~/.vst3/
+    [[ -d "home/$RESTORE_USER/.clap" ]] && rsync -av "home/$RESTORE_USER/.clap/" ~/.clap/
 
     # Copy fonts
-    [ -d "home/$RESTORE_USER/.local/share/fonts" ] && rsync -av "home/$RESTORE_USER/.local/share/fonts/" ~/.local/share/fonts/
+    [[ -d "home/$RESTORE_USER/.local/share/fonts" ]] && rsync -av "home/$RESTORE_USER/.local/share/fonts/" ~/.local/share/fonts/
     fc-cache -fv ~/.local/share/fonts 2>/dev/null || true
 
     # Sync yabridge plugins
@@ -532,7 +521,7 @@ install_yay_and_aur() {
     print_msg "$BLUE" "Installing AUR Packages..."
 
     if ! command -v yay &> /dev/null; then
-        if [ "$DRY_RUN" = "true" ]; then
+        if [[ "$DRY_RUN" = "true" ]]; then
             print_msg "$BLUE" "[DRY RUN] Would install yay"
         else
             local temp_dir=$(mktemp -d)
@@ -557,7 +546,7 @@ install_yay_and_aur() {
         sononym
     )
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would install AUR packages: ${aur_pkgs[*]}"
         return 0
     fi
@@ -577,7 +566,7 @@ setup_t14s_hardware() {
         fwupd keyd zram-generator
     )
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would install hardware packages and configure keyd"
         return 0
     fi
@@ -590,7 +579,7 @@ setup_t14s_hardware() {
     # Keyboard Remap (Backspace <-> Backslash) - only if not already configured
     sudo mkdir -p /etc/keyd
 
-    if [ ! -f /etc/keyd/default.conf ]; then
+    if [[ ! -f /etc/keyd/default.conf ]]; then
         sudo tee /etc/keyd/default.conf > /dev/null <<'EOF'
 [ids]
 *
@@ -611,8 +600,8 @@ setup_t14s_power() {
     print_msg "$BLUE" "Configuring T14s Power (TLP & Thinkfan)..."
 
     # 1. Enable Kernel Fan Control
-    if [ ! -f /etc/modprobe.d/thinkpad_acpi.conf ]; then
-        if [ "$DRY_RUN" = "true" ]; then
+    if [[ ! -f /etc/modprobe.d/thinkpad_acpi.conf ]]; then
+        if [[ "$DRY_RUN" = "true" ]]; then
             print_msg "$BLUE" "[DRY RUN] Would configure thinkpad_acpi fan control"
         else
             echo "options thinkpad_acpi fan_control=1" | sudo tee /etc/modprobe.d/thinkpad_acpi.conf
@@ -622,8 +611,8 @@ setup_t14s_power() {
     fi
 
     # 2. ZRAM Config
-    if [ ! -f /etc/systemd/zram-generator.conf ]; then
-        if [ "$DRY_RUN" = "true" ]; then
+    if [[ ! -f /etc/systemd/zram-generator.conf ]]; then
+        if [[ "$DRY_RUN" = "true" ]]; then
             print_msg "$BLUE" "[DRY RUN] Would configure ZRAM"
         else
             print_msg "$YELLOW" "Configuring ZRAM..."
@@ -636,12 +625,12 @@ EOF
     fi
 
     # 3. TLP Configuration (Embedded - T14s optimized)
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would configure TLP and Thinkfan"
         return 0
     fi
 
-    if [ -f /etc/tlp.conf ]; then
+    if [[ -f /etc/tlp.conf ]]; then
         sudo mv /etc/tlp.conf /etc/tlp.conf.bak.$(date +%s)
     fi
     print_msg "$YELLOW" "Installing optimized TLP config..."
@@ -718,7 +707,7 @@ TPSMAPI_ENABLE=1
 TLPEOF
 
     # 4. Thinkfan Configuration (Embedded - T14s AMD optimized)
-    if [ -f /etc/thinkfan.yaml ]; then
+    if [[ -f /etc/thinkfan.yaml ]]; then
         sudo mv /etc/thinkfan.yaml /etc/thinkfan.yaml.bak.$(date +%s)
     fi
     print_msg "$YELLOW" "Installing optimized Thinkfan config..."
@@ -759,7 +748,7 @@ THINKFANEOF
 setup_security() {
     print_msg "$BLUE" "Securing System..."
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would configure firewall and SSH hardening"
         return 0
     fi
@@ -777,7 +766,7 @@ setup_security() {
     print_msg "$YELLOW" "Applying SSH server hardening..."
 
     # Backup existing configs
-    if [ -f /etc/ssh/sshd_config ]; then
+    if [[ -f /etc/ssh/sshd_config ]]; then
         sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%s)
     fi
 
@@ -838,7 +827,7 @@ full_setup() {
     setup_t14s_power
     setup_security
 
-    if [ "$DRY_RUN" = "true" ]; then
+    if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would install languages & containers"
     else
         # Languages & Containers
@@ -894,13 +883,13 @@ EOF
 
 # Check for dry run flag
 for arg in "$@"; do
-    if [ "$arg" = "--dry-run" ]; then
+    if [[ "$arg" = "--dry-run" ]]; then
         DRY_RUN=true
         print_msg "$YELLOW" "=== DRY RUN MODE ENABLED ==="
     fi
 done
 
-if [ $# -eq 0 ]; then
+if [[ $# -eq 0 ]]; then
     usage
     exit 1
 fi
