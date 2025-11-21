@@ -345,6 +345,27 @@ restore_data() {
     move_if_exists "Bitwig Studio"
     move_if_exists "new-wineprefix"
 
+    # Create performance toggle scripts
+    if [[ "$DRY_RUN" != "true" ]]; then
+        mkdir -p ~/bin
+
+        cat > ~/bin/perf-mode <<'PERFEOF'
+#!/bin/bash
+# set cpu governor to performance mode
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor > /dev/null
+echo "performance mode enabled"
+PERFEOF
+
+        cat > ~/bin/battery-mode <<'BATEOF'
+#!/bin/bash
+# set cpu governor to powersave mode
+echo powersave | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor > /dev/null
+echo "battery mode enabled"
+BATEOF
+
+        print_msg "$GREEN" "✓ created performance toggle scripts"
+    fi
+
     # Make bin scripts executable
     if [[ -d ~/bin ]]; then
         chmod +x ~/bin/* 2>/dev/null || true
@@ -437,6 +458,21 @@ EOF
 
     # Add user to audio group
     sudo usermod -aG audio $RESTORE_USER
+
+    # Configure rtirq for audio interrupt priority
+    run_cmd "would configure rtirq for audio priority" \
+        sudo tee /etc/rtirq.conf > /dev/null <<'EOF'
+# Audio interrupt priority configuration
+RTIRQ_NAME_LIST="snd_hda_intel usb i8042"
+RTIRQ_PRIO_HIGH=90
+RTIRQ_PRIO_DECR=5
+RTIRQ_RESET_ALL=0
+EOF
+
+    # Enable rtirq service
+    if [[ "$DRY_RUN" != "true" ]]; then
+        sudo systemctl enable --now rtirq 2>/dev/null || true
+    fi
 
     print_msg "$GREEN" "Music production tools installed!"
     print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
@@ -625,7 +661,18 @@ EOF
         fi
     fi
 
-    # 3. TLP Configuration (Embedded - T14s optimized)
+    # 3. swappiness configuration (audio optimization)
+    if [[ ! -f /etc/sysctl.d/99-swappiness.conf ]]; then
+        if [[ "$DRY_RUN" = "true" ]]; then
+            print_msg "$BLUE" "[DRY RUN] Would configure swappiness"
+        else
+            echo "vm.swappiness=10" | sudo tee /etc/sysctl.d/99-swappiness.conf > /dev/null
+            sudo sysctl -p /etc/sysctl.d/99-swappiness.conf 2>/dev/null || true
+            print_msg "$GREEN" "✓ swappiness set to 10"
+        fi
+    fi
+
+    # 4. TLP Configuration (Embedded - T14s optimized)
     if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would configure TLP and Thinkfan"
         return 0
@@ -707,7 +754,7 @@ TPACPI_ENABLE=1
 TPSMAPI_ENABLE=1
 TLPEOF
 
-    # 4. Thinkfan Configuration (Embedded - T14s AMD optimized)
+    # 5. Thinkfan Configuration (Embedded - T14s AMD optimized)
     if [[ -f /etc/thinkfan.yaml ]]; then
         sudo mv /etc/thinkfan.yaml /etc/thinkfan.yaml.bak.$(date +%s)
     fi
@@ -739,7 +786,16 @@ levels:
   - ["level disengaged", 70, 255]
 THINKFANEOF
 
-    # 5. Enable Services
+    # 6. amd p-state driver check (optional - better for ryzen mobile)
+    if ! grep -q "amd_pstate=active" /etc/default/grub 2>/dev/null; then
+        print_msg "$YELLOW" "note: amd_pstate not configured"
+        print_msg "$BLUE" "run: sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"/&amd_pstate=active /' /etc/default/grub"
+        print_msg "$BLUE" "then: sudo grub-mkconfig -o /boot/grub/grub.cfg && reboot"
+    else
+        print_msg "$GREEN" "✓ amd p-state configured"
+    fi
+
+    # 7. Enable Services
     sudo systemctl enable --now tlp
     sudo systemctl enable --now thinkfan
 
