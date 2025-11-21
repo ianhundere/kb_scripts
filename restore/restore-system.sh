@@ -507,6 +507,8 @@ EOF
     # Fix application icons for KDE Wayland/X11
     # Signal (Wayland): Desktop File Name must match - need signal.desktop not signal-desktop.desktop
     # Bitwig (X11): StartupWMClass must match Java class name
+    # Proton Mail Bridge (Wayland Flatpak): Desktop file name must match window resourceClass (ch.proton.bridge-gui)
+    # Proton VPN (Wayland Flatpak): Desktop file name must match window resourceClass (protonvpn-app)
     if [[ -d ~/.local/share/applications ]] || [[ "$DRY_RUN" = "true" ]]; then
         if [[ "$DRY_RUN" = "true" ]]; then
             print_msg "$BLUE" "[DRY RUN] Would create Signal/Bitwig desktop file fixes"
@@ -566,6 +568,48 @@ StartupNotify=true
 StartupWMClass=com.bitwig.BitwigStudio
 EOF
                 print_msg "$GREEN" "✓ Bitwig Studio desktop file created (fixes X11 icon)"
+            fi
+
+            # Proton Mail Bridge desktop file fix (Wayland Flatpak)
+            # Desktop file name must match window's resourceClass: ch.proton.bridge-gui
+            if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
+                cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Version=1.1
+Name=Proton Mail Bridge
+GenericName=Proton Mail Bridge for Linux
+Comment=Proton Mail Bridge is a desktop application that runs in the background, encrypting and decrypting messages as they enter and leave your computer.
+Icon=ch.protonmail.protonmail-bridge
+Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonmail-bridge ch.protonmail.protonmail-bridge
+Terminal=false
+Categories=Office;Email;
+StartupWMClass=ch.proton.bridge-gui
+StartupNotify=true
+X-Desktop-File-Install-Version=0.28
+X-Flatpak=ch.protonmail.protonmail-bridge
+EOF
+                print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created (fixes Wayland icon)"
+            fi
+
+            # Proton VPN desktop file fix (Wayland Flatpak)
+            # Desktop file name must match window's resourceClass: protonvpn-app
+            if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
+                cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
+[Desktop Entry]
+Name=Proton VPN
+Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonvpn-app --file-forwarding com.protonvpn.www @@u %u @@
+Terminal=false
+Type=Application
+Icon=com.protonvpn.www
+StartupWMClass=protonvpn-app
+StartupNotify=true
+Comment=Proton VPN GUI client
+Categories=Network;
+X-Desktop-File-Install-Version=0.28
+X-Flatpak=com.protonvpn.www
+EOF
+                print_msg "$GREEN" "✓ Proton VPN desktop file created (fixes Wayland icon)"
             fi
 
             update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
