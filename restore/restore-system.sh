@@ -474,6 +474,36 @@ EOF
         sudo systemctl enable --now rtirq 2>/dev/null || true
     fi
 
+    # Add threadirqs kernel parameter (required for rtirq to work)
+    if [[ -d /boot/loader/entries ]]; then
+        # systemd-boot detected
+        for entry in /boot/loader/entries/arch*.conf; do
+            if [[ -f "$entry" ]] && ! grep -q "threadirqs" "$entry" 2>/dev/null; then
+                if [[ "$DRY_RUN" = "true" ]]; then
+                    print_msg "$BLUE" "[DRY RUN] Would add threadirqs to $entry"
+                else
+                    sudo sed -i 's/options /options threadirqs /' "$entry"
+                    print_msg "$GREEN" "✓ added threadirqs to $(basename $entry)"
+                fi
+            fi
+        done
+        if [[ "$DRY_RUN" != "true" ]]; then
+            print_msg "$YELLOW" "note: reboot required for threadirqs to take effect"
+        fi
+    elif [[ -f /etc/default/grub ]]; then
+        # GRUB detected
+        if ! grep -q "threadirqs" /etc/default/grub 2>/dev/null; then
+            if [[ "$DRY_RUN" = "true" ]]; then
+                print_msg "$BLUE" "[DRY RUN] Would add threadirqs to GRUB"
+            else
+                sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/&threadirqs /' /etc/default/grub
+                sudo grub-mkconfig -o /boot/grub/grub.cfg
+                print_msg "$GREEN" "✓ added threadirqs to GRUB"
+                print_msg "$YELLOW" "note: reboot required for threadirqs to take effect"
+            fi
+        fi
+    fi
+
     print_msg "$GREEN" "Music production tools installed!"
     print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
 }
