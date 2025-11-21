@@ -504,6 +504,75 @@ EOF
         fi
     fi
 
+    # Fix application icons for KDE Wayland/X11
+    # Signal (Wayland): Desktop File Name must match - need signal.desktop not signal-desktop.desktop
+    # Bitwig (X11): StartupWMClass must match Java class name
+    if [[ -d ~/.local/share/applications ]] || [[ "$DRY_RUN" = "true" ]]; then
+        if [[ "$DRY_RUN" = "true" ]]; then
+            print_msg "$BLUE" "[DRY RUN] Would create Signal/Bitwig desktop file fixes"
+        else
+            mkdir -p ~/.local/share/applications
+
+            # Signal desktop file fix (Wayland)
+            cat > ~/.local/share/applications/signal.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Signal
+Comment=Signal - Private Messenger
+Icon=signal-desktop
+Exec=signal-desktop -- %u
+Terminal=false
+Categories=Network;InstantMessaging;
+StartupWMClass=signal
+MimeType=x-scheme-handler/sgnl;x-scheme-handler/signalcaptcha;
+Keywords=sgnl;chat;im;messaging;messenger;security;privat;
+X-GNOME-UsesNotifications=true
+EOF
+
+            # Bitwig Studio desktop file fix (X11) - handles both beta and stable
+            if command -v bitwig-studio-beta &>/dev/null; then
+                cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
+[Desktop Entry]
+Version=1.5
+Type=Application
+Name=Bitwig Studio Beta
+GenericName=Digital Audio Workstation
+Comment=Modern music production and performance
+Icon=com.bitwig.BitwigStudioBeta
+Exec=bitwig-studio-beta
+Terminal=false
+MimeType=application/bitwig-beta-clip;application/bitwig-beta-device;application/bitwig-beta-package;application/bitwig-beta-preset;application/bitwig-beta-project;application/bitwig-beta-scene;application/bitwig-beta-template;application/bitwig-beta-extension;application/bitwig-beta-remote-controls;application/bitwig-beta-module;application/bitwig-beta-modulator;application/vnd.bitwig.dawproject
+Categories=AudioVideo;Music;Audio;Sequencer;Midi;Mixer;Player;Recorder
+Keywords=daw;bitwig;audio;midi
+StartupNotify=true
+StartupWMClass=com.bitwig.BitwigStudio
+EOF
+                print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created (fixes X11 icon)"
+            elif command -v bitwig-studio &>/dev/null; then
+                cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
+[Desktop Entry]
+Version=1.5
+Type=Application
+Name=Bitwig Studio
+GenericName=Digital Audio Workstation
+Comment=Modern music production and performance
+Icon=com.bitwig.BitwigStudio
+Exec=bitwig-studio
+Terminal=false
+MimeType=application/bitwig-clip;application/bitwig-device;application/bitwig-package;application/bitwig-preset;application/bitwig-project;application/bitwig-scene;application/bitwig-template;application/bitwig-extension;application/bitwig-remote-controls;application/bitwig-module;application/bitwig-modulator;application/vnd.bitwig.dawproject
+Categories=AudioVideo;Music;Audio;Sequencer;Midi;Mixer;Player;Recorder
+Keywords=daw;bitwig;audio;midi
+StartupNotify=true
+StartupWMClass=com.bitwig.BitwigStudio
+EOF
+                print_msg "$GREEN" "✓ Bitwig Studio desktop file created (fixes X11 icon)"
+            fi
+
+            update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
+            print_msg "$GREEN" "✓ Signal desktop file created (fixes Wayland icon)"
+        fi
+    fi
+
     print_msg "$GREEN" "Music production tools installed!"
     print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
 }
