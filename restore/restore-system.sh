@@ -1,6 +1,7 @@
 #!/bin/bash
 # System restoration for ThinkPad T14s AMD Gen 1 (Arch Linux + KDE Plasma)
 # Automated backup restoration, package installation, and hardware configuration
+# hardware reference: https://wiki.archlinux.org/title/Lenovo_ThinkPad_T14s_(AMD)_Gen_1
 
 set -e
 
