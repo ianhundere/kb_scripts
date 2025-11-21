@@ -178,7 +178,7 @@ immutability=1
 plugin=org.kde.plasma.battery
 
 [Containments][34][Applets][42][Applets][57][Configuration]
-PreloadWeight=33
+PreloadWeight=38
 
 [Containments][34][Applets][42][Applets][79]
 immutability=1
@@ -270,7 +270,7 @@ Color=1,32,10
 Color=26,45,33
 DynamicMode=2
 FillMode=3
-Image=file:///home/ianfundere/Downloads/RR-1315-1400x753.jpg
+Image=file://$HOME/Downloads/RR-1315-1400x753.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments34Appletsts][78][Configuration][Appearance]
@@ -281,9 +281,9 @@ visible=false
 
 [Containments34Appletsts][93][Configuration][General]
 clickCommand=pw-top
-command=/home/ianfundere/.local/bin/pipewire-xrun-monitor.sh
+command=$HOME/.local/bin/pipewire-xrun-monitor.sh
 waitForCompletion=true
 
 [ScreenMapping]
 itemsOnDisabledScreens=
-screenMapping=desktop:/IanHundereResume.pdf,0,20645495-8c63-48d9-a3eb-7b416e7568c9
+screenMapping=desktop:/IanHundereResume.pdf,0,20645495-8c63-48d9-a3eb-7b416e7568c9,desktop:/SECURITY-REMEDIATION.md,0,20645495-8c63-48d9-a3eb-7b416e7568c9

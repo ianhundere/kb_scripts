@@ -11,14 +11,14 @@
 # Edit with: crontab -e
 
 SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/home/ianfundere/bin
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:$HOME/bin
 MAILTO=""
 
 # Home directory backup - runs daily at 2 AM
-0 2 * * * /home/ianfundere/bin/backup-wrapper.sh backup_t14s_home >> /home/ianfundere/logs/backup_home.log 2>&1
+0 2 * * * $HOME/bin/backup-wrapper.sh backup_t14s_home >> $HOME/logs/backup_home.log 2>&1
 
 # System backup (Timeshift snapshots) - runs daily at 3 AM
-0 3 * * * /home/ianfundere/bin/backup-wrapper.sh backup_t14s_sys >> /home/ianfundere/logs/backup_sys.log 2>&1
+0 3 * * * $HOME/bin/backup-wrapper.sh backup_t14s_sys >> $HOME/logs/backup_sys.log 2>&1
 
 # Full drive backup - runs weekly on Sunday at 4 AM
-0 4 * * 0 /home/ianfundere/bin/backup-wrapper.sh backup_full_sys >> /home/ianfundere/logs/backup_full.log 2>&1
+0 4 * * 0 $HOME/bin/backup-wrapper.sh backup_full_sys >> $HOME/logs/backup_full.log 2>&1

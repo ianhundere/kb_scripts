@@ -56,7 +56,7 @@ RollOverDesktops=true
 SeparateScreenFocus=true
 
 [Xwayland]
-Scale=2
+Scale=1.5
 
 [org.kde.kdecoration2]
 BorderSize=Tiny

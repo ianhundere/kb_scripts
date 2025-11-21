@@ -30,7 +30,7 @@ xkb_symbols "remote" {
 };
 EOF
 
-    chown ianfundere:ianfundere /tmp/xkb/symbols/custom_lenovo
+    chown $USER:$USER /tmp/xkb/symbols/custom_lenovo
 
     setxkbmap -device $remote_id -print |
         sed 's/\(xkb_symbols.*\)"/\1+custom_lenovo(remote)"/' |
