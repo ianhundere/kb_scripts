@@ -1,4 +1,4 @@
-# KB Scripts
+# T14s/Arch Sys Restore 
 
 System management and automation tools for ThinkPad T14s AMD Gen 1 running Arch Linux + KDE Plasma.
 
