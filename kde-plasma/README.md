@@ -41,6 +41,26 @@ Custom KDE Plasma and keyd configurations for ThinkPad T14s AMD Gen 1.
   - Colors, fonts, behavior settings
   - Install to: `~/.local/share/konsole/default.profile`
 
+### Plasma Desktop
+
+- **plasmarc** - Plasma desktop configuration
+  - Desktop behavior and settings
+  - Install to: `~/.config/plasmarc`
+
+- **plasmashellrc** - Plasma shell configuration
+  - Panel layout, widgets, shell behavior
+  - Install to: `~/.config/plasmashellrc`
+
+- **plasma-org.kde.plasma.desktop-appletsrc** - Desktop widgets/applets
+  - Taskbar, system tray, desktop widgets configuration
+  - Install to: `~/.config/plasma-org.kde.plasma.desktop-appletsrc`
+
+### Display Configuration
+
+- **kwinoutputconfig.json** - Display/monitor configuration
+  - Screen arrangement, resolution, scaling settings
+  - Install to: `~/.config/kwinoutputconfig.json`
+
 ## Setup
 
 ### Keyboard Remapping
@@ -72,11 +92,15 @@ Copy config files to their respective locations:
 cp kwinrc ~/.config/
 cp kglobalshortcutsrc ~/.config/
 cp dolphinrc ~/.config/
+cp plasmarc ~/.config/
+cp plasmashellrc ~/.config/
+cp plasma-org.kde.plasma.desktop-appletsrc ~/.config/
+cp kwinoutputconfig.json ~/.config/
 mkdir -p ~/.local/share/konsole
 cp konsole/default.profile ~/.local/share/konsole/
 ```
 
-Log out and log back in for changes to apply.
+Log out and log back in for changes to apply (or restart Plasma shell with `kquitapp5 plasmashell && kstart5 plasmashell`).
 
 ## Notes
 

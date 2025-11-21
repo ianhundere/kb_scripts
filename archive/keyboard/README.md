@@ -1,6 +1,8 @@
-# Keyboard Management Scripts
+# Keyboard Management Scripts (ARCHIVED)
 
-Scripts for managing multiple USB keyboards with keyd on KDE Plasma.
+**Note:** These scripts were used with Pop!_OS and other distros, not KDE Plasma. Now archived - active keyboard configs are in `../kde-plasma/`.
+
+Scripts for managing multiple USB keyboards with keyd.
 
 ## Scripts
 

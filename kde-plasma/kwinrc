@@ -6,6 +6,12 @@ Id_4=c447c6a3-b1d0-45a8-b63d-435fdc276695
 Number=4
 Rows=2
 
+[Effect-overview]
+BorderActivate=9
+
+[NightColor]
+Active=true
+
 [Plugins]
 desktopchangeosdEnabled=true
 fluid-tileEnabled=false
@@ -38,15 +44,19 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 [Tiling][c447c6a3-b1d0-45a8-b63d-435fdc276695][d697fc43-5164-42cf-9329-d57b8282328e]
 tiles={"layoutDirection":"horizontal","tiles":[{"layoutDirection":"vertical","tiles":[{"height":0.5},{"height":0.5}],"width":0.4},{"width":0.6}]}
 
+[Tiling][c519636c-a39b-418c-a67b-77c34116f98e][d697fc43-5164-42cf-9329-d57b8282328e]
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Windows]
 ActiveMouseScreen=false
+BorderlessMaximizedWindows=true
 ElectricBorderMaximize=false
 ElectricBorderTiling=false
 RollOverDesktops=true
 SeparateScreenFocus=true
 
 [Xwayland]
-Scale=1
+Scale=2
 
 [org.kde.kdecoration2]
 BorderSize=Tiny

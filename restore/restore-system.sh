@@ -10,7 +10,7 @@ BORG_REPO="${BORG_REPO}"
 RESTORE_USER="${RESTORE_USER:-$USER}"
 DRY_RUN="${DRY_RUN:-false}"
 
-# Logging
+# logging
 LOG_FILE="${HOME}/restore-system.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -177,7 +177,7 @@ restore_kde_config() {
     trap "cleanup_temp '$temp_dir'" RETURN
     cd "$temp_dir"
 
-    # Critical KDE Files
+    # critical kde files
     local kde_files=(
         "home/$RESTORE_USER/.config/plasma-org.kde.plasma.desktop-appletsrc"
         "home/$RESTORE_USER/.config/plasmashellrc"
@@ -202,7 +202,7 @@ restore_kde_config() {
 
     wait_for_process_exit "plasmashell" 10
 
-    # Copy configs
+    # copy configs
     if [[ -d "home/$RESTORE_USER/.config" ]]; then
         cp -r "home/$RESTORE_USER/.config/"* ~/.config/ 2>/dev/null || true
     fi
@@ -257,7 +257,7 @@ restore_misc_configs() {
         chmod 700 ~/.gnupg
     fi
 
-    # Dev environments
+    # dev environments
     [[ -d "home/$RESTORE_USER/.docker" ]] && cp -r "home/$RESTORE_USER/.docker" ~/
     [[ -d "home/$RESTORE_USER/.kube" ]] && cp -r "home/$RESTORE_USER/.kube" ~/
     [[ -d "home/$RESTORE_USER/.pyenv" ]] && rsync -av "home/$RESTORE_USER/.pyenv/" ~/.pyenv/
@@ -266,7 +266,7 @@ restore_misc_configs() {
     [[ -d "home/$RESTORE_USER/.arduino15" ]] && rsync -av "home/$RESTORE_USER/.arduino15/" ~/.arduino15/
     [[ -d "home/$RESTORE_USER/.mozilla" ]] && rsync -av "home/$RESTORE_USER/.mozilla/" ~/.mozilla/
 
-    # Systemd user services
+    # systemd user services
     if [[ -d "home/$RESTORE_USER/.config/systemd" ]]; then
         mkdir -p ~/.config/systemd
         cp -r "home/$RESTORE_USER/.config/systemd/"* ~/.config/systemd/
@@ -321,7 +321,7 @@ restore_data() {
 
     print_msg "$BLUE" "Copying data to home directory..."
 
-    # Function to safely move directories
+    # safely move directories
     move_if_exists() {
         if [[ -d "home/$RESTORE_USER/$1" ]]; then
             rsync -av "home/$RESTORE_USER/$1/" ~/"$1"/
@@ -345,7 +345,7 @@ restore_data() {
     move_if_exists "Bitwig Studio"
     move_if_exists "new-wineprefix"
 
-    # Create performance toggle scripts
+    # create performance toggle scripts
     if [[ "$DRY_RUN" != "true" ]]; then
         mkdir -p ~/bin
 
@@ -366,7 +366,7 @@ BATEOF
         print_msg "$GREEN" "✓ created performance toggle scripts"
     fi
 
-    # Make bin scripts executable
+    # make bin scripts executable
     if [[ -d ~/bin ]]; then
         chmod +x ~/bin/* 2>/dev/null || true
     fi
@@ -399,7 +399,7 @@ restore_app_configs() {
         return 0
     fi
 
-    # Copy configs if they exist
+    # copy configs if they exist
     for config in calibre obsidian syncthing Code vscode-mssql vscode-sqltools; do
         if [[ -d "home/$RESTORE_USER/.config/$config" ]]; then
             mkdir -p ~/.config/
@@ -435,7 +435,7 @@ install_lean_kde() {
 install_desktop_apps() {
     print_msg "$BLUE" "installing desktop apps & audio..."
     install_pkgs "desktop apps" \
-        firefox chromium code obsidian bitwarden signal-desktop \
+        firefox chromium obsidian bitwarden signal-desktop \
         calibre syncthing discord audacity steam \
         pipewire pipewire-alsa pipewire-pulse pipewire-jack \
         wireplumber pavucontrol alsa-utils vlc \
@@ -498,7 +498,7 @@ install_music_production() {
 EOF
 
     # Add user to audio group
-    sudo usermod -aG audio $RESTORE_USER
+    sudo usermod -aG audio "$RESTORE_USER"
 
     # Configure rtirq for audio interrupt priority
     run_cmd "would configure rtirq for audio priority" \
@@ -545,19 +545,23 @@ EOF
         fi
     fi
 
-    # Fix application icons for KDE Wayland/X11
-    # Signal (Wayland): Desktop File Name must match - need signal.desktop not signal-desktop.desktop
-    # Bitwig (X11): StartupWMClass must match Java class name
-    # Proton Mail Bridge (Wayland Flatpak): Desktop file name must match window resourceClass (ch.proton.bridge-gui)
-    # Proton VPN (Wayland Flatpak): Desktop file name must match window resourceClass (protonvpn-app)
-    if [[ -d ~/.local/share/applications ]] || [[ "$DRY_RUN" = "true" ]]; then
-        if [[ "$DRY_RUN" = "true" ]]; then
-            print_msg "$BLUE" "[DRY RUN] Would create Signal/Bitwig desktop file fixes"
-        else
-            mkdir -p ~/.local/share/applications
+    print_msg "$GREEN" "Music production tools installed!"
+    print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
+}
 
-            # Signal desktop file fix (Wayland)
-            cat > ~/.local/share/applications/signal.desktop <<'EOF'
+fix_desktop_icons() {
+    print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would create desktop file fixes for Signal/Bitwig/Proton apps"
+        return 0
+    fi
+
+    mkdir -p ~/.local/share/applications
+
+    # signal desktop file fix (wayland)
+    # desktop file name must match window class: signal.desktop not signal-desktop.desktop
+    cat > ~/.local/share/applications/signal.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Signal
@@ -572,9 +576,10 @@ Keywords=sgnl;chat;im;messaging;messenger;security;privat;
 X-GNOME-UsesNotifications=true
 EOF
 
-            # Bitwig Studio desktop file fix (X11) - handles both beta and stable
-            if command -v bitwig-studio-beta &>/dev/null; then
-                cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
+    # bitwig studio desktop file fix (x11)
+    # startupwmclass must match java class name
+    if command -v bitwig-studio-beta &>/dev/null; then
+        cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
 [Desktop Entry]
 Version=1.5
 Type=Application
@@ -590,9 +595,9 @@ Keywords=daw;bitwig;audio;midi
 StartupNotify=true
 StartupWMClass=com.bitwig.BitwigStudio
 EOF
-                print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created (fixes X11 icon)"
-            elif command -v bitwig-studio &>/dev/null; then
-                cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
+        print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created"
+    elif command -v bitwig-studio &>/dev/null; then
+        cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
 [Desktop Entry]
 Version=1.5
 Type=Application
@@ -608,13 +613,13 @@ Keywords=daw;bitwig;audio;midi
 StartupNotify=true
 StartupWMClass=com.bitwig.BitwigStudio
 EOF
-                print_msg "$GREEN" "✓ Bitwig Studio desktop file created (fixes X11 icon)"
-            fi
+        print_msg "$GREEN" "✓ Bitwig Studio desktop file created"
+    fi
 
-            # Proton Mail Bridge desktop file fix (Wayland Flatpak)
-            # Desktop file name must match window's resourceClass: ch.proton.bridge-gui
-            if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
-                cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
+    # proton mail bridge desktop file fix (wayland flatpak)
+    # desktop file name must match window resourceClass: ch.proton.bridge-gui
+    if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
+        cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Version=1.1
@@ -630,13 +635,13 @@ StartupNotify=true
 X-Desktop-File-Install-Version=0.28
 X-Flatpak=ch.protonmail.protonmail-bridge
 EOF
-                print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created (fixes Wayland icon)"
-            fi
+        print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created"
+    fi
 
-            # Proton VPN desktop file fix (Wayland Flatpak)
-            # Desktop file name must match window's resourceClass: protonvpn-app
-            if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
-                cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
+    # proton vpn desktop file fix (wayland flatpak)
+    # desktop file name must match window resourceClass: protonvpn-app
+    if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
+        cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
 [Desktop Entry]
 Name=Proton VPN
 Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonvpn-app --file-forwarding com.protonvpn.www @@u %u @@
@@ -650,16 +655,11 @@ Categories=Network;
 X-Desktop-File-Install-Version=0.28
 X-Flatpak=com.protonvpn.www
 EOF
-                print_msg "$GREEN" "✓ Proton VPN desktop file created (fixes Wayland icon)"
-            fi
-
-            update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
-            print_msg "$GREEN" "✓ Signal desktop file created (fixes Wayland icon)"
-        fi
+        print_msg "$GREEN" "✓ Proton VPN desktop file created"
     fi
 
-    print_msg "$GREEN" "Music production tools installed!"
-    print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
+    update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
+    print_msg "$GREEN" "Desktop icon fixes applied!"
 }
 
 restore_music_production() {
@@ -706,7 +706,7 @@ restore_music_production() {
 
     print_msg "$BLUE" "Copying music production files..."
 
-    # Copy configs
+    # copy configs
     [[ -d "home/$RESTORE_USER/.config/yabridgectl" ]] && cp -r "home/$RESTORE_USER/.config/yabridgectl" ~/.config/
     [[ -d "home/$RESTORE_USER/.config/wireplumber" ]] && cp -r "home/$RESTORE_USER/.config/wireplumber" ~/.config/
     [[ -d "home/$RESTORE_USER/.config/pipewire" ]] && cp -r "home/$RESTORE_USER/.config/pipewire" ~/.config/
@@ -746,16 +746,16 @@ install_yay_and_aur() {
             print_msg "$BLUE" "[DRY RUN] Would install yay"
         else
             local temp_dir=$(mktemp -d)
-            trap "cd ~; rm -rf '$temp_dir'" EXIT ERR
+            trap "cleanup_temp '$temp_dir'" RETURN
             cd "$temp_dir"
             git clone https://aur.archlinux.org/yay.git
             cd yay
             makepkg -si --noconfirm
-            cd ~ && rm -rf "$temp_dir"
         fi
     fi
 
     local aur_pkgs=(
+        visual-studio-code-bin
         mission-center
         tlpui
         thinkfan
@@ -1026,7 +1026,7 @@ ChallengeResponseAuthentication no
 PermitEmptyPasswords no
 
 # Only allow specific users
-AllowUsers $RESTORE_USER
+AllowUsers "$RESTORE_USER"
 EOF
 
     # Test configuration
@@ -1069,13 +1069,14 @@ full_setup() {
     setup_t14s_hardware
     setup_t14s_power
     setup_security
+    fix_desktop_icons
 
     if [[ "$DRY_RUN" = "true" ]]; then
         print_msg "$BLUE" "[DRY RUN] Would install languages & containers"
     else
         # languages & containers
         sudo pacman -S --needed --noconfirm python python-pip go rust docker docker-compose kubectl npm github-cli
-        sudo usermod -aG docker $RESTORE_USER
+        sudo usermod -aG docker "$RESTORE_USER"
         sudo systemctl enable docker
 
         # enable syncthing user service
@@ -1111,6 +1112,7 @@ Commands:
   install-music       Install music production stack (yabridge, wine)
   setup-power         Configure T14s power management
   setup-security      Configure firewall + SSH hardening
+  fix-icons           Fix desktop icons for KDE Wayland/X11 (Signal, Bitwig, Proton apps)
 
 Environment Variables:
   BORG_REPO           Borg repository path (required: user@host:repo)
@@ -1153,5 +1155,6 @@ case "$1" in
     install-music) install_music_production ;;
     setup-power) setup_t14s_power ;;
     setup-security) setup_security ;;
+    fix-icons) fix_desktop_icons ;;
     *) usage ;;
 esac
