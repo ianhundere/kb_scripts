@@ -1,0 +1,11 @@
+# System crontab for Timeshift on boot
+# Install to: /etc/cron.d/timeshift_boot
+#
+# Creates a Timeshift snapshot 10 minutes after boot
+# Only runs if Borg backup is not currently running
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=""
+
+@reboot root sleep 10m && pgrep -lf python | grep borg >/dev/null; [[ $? -ne 0 ]] && timeshift --create --scripted --tags B
