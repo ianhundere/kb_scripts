@@ -684,6 +684,7 @@ if [[ -f ~/.local/bin/rcu ]]; then
     mkdir -p ~/.local/share/icons
     if [[ -f ~/.local/share/applications/davisr-rcu.png ]]; then
         cp ~/.local/share/applications/davisr-rcu.png ~/.local/share/icons/davisr-rcu.png
+        rm -f ~/.local/share/applications/davisr-rcu.png  # clean up orphaned icon
     fi
 
     # Desktop file name and StartupWMClass must match resourceClass: me.davisr.rcu
