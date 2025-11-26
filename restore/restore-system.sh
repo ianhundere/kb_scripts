@@ -553,15 +553,31 @@ fix_desktop_icons() {
     print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 
     if [[ "$DRY_RUN" = "true" ]]; then
-        print_msg "$BLUE" "[DRY RUN] Would create desktop file fixes for Signal/Bitwig/Proton apps"
+        print_msg "$BLUE" "[DRY RUN] Would create ~/bin/fix-app-icons.sh and run it"
         return 0
     fi
 
-    mkdir -p ~/.local/share/applications
+    mkdir -p ~/bin
 
-    # signal desktop file fix (wayland)
-    # desktop file name must match window class: signal.desktop not signal-desktop.desktop
-    cat > ~/.local/share/applications/signal.desktop <<'EOF'
+    # Create the standalone fix script
+    cat > ~/bin/fix-app-icons.sh <<'FIXEOF'
+#!/bin/bash
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_msg() { echo -e "${1}${@:2}${NC}"; }
+
+print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
+
+mkdir -p ~/.local/share/applications
+
+# signal desktop file fix (wayland)
+# desktop file name must match window class: signal.desktop not signal-desktop.desktop
+cat > ~/.local/share/applications/signal.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Signal
@@ -575,11 +591,24 @@ MimeType=x-scheme-handler/sgnl;x-scheme-handler/signalcaptcha;
 Keywords=sgnl;chat;im;messaging;messenger;security;privat;
 X-GNOME-UsesNotifications=true
 EOF
+print_msg "$GREEN" "✓ Signal desktop file created"
 
-    # bitwig studio desktop file fix (x11)
-    # startupwmclass must match java class name
-    if command -v bitwig-studio-beta &>/dev/null; then
-        cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
+# mask the system signal-desktop.desktop to avoid duplicates
+if [[ -f /usr/share/applications/signal-desktop.desktop ]]; then
+    cat > ~/.local/share/applications/signal-desktop.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Signal
+Exec=
+Hidden=true
+EOF
+    print_msg "$GREEN" "✓ System Signal desktop file masked"
+fi
+
+# bitwig studio desktop file fix (x11)
+# startupwmclass must match java class name
+if command -v bitwig-studio-beta &>/dev/null; then
+    cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
 [Desktop Entry]
 Version=1.5
 Type=Application
@@ -595,9 +624,9 @@ Keywords=daw;bitwig;audio;midi
 StartupNotify=true
 StartupWMClass=com.bitwig.BitwigStudio
 EOF
-        print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created"
-    elif command -v bitwig-studio &>/dev/null; then
-        cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
+    print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created"
+elif command -v bitwig-studio &>/dev/null; then
+    cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
 [Desktop Entry]
 Version=1.5
 Type=Application
@@ -613,13 +642,13 @@ Keywords=daw;bitwig;audio;midi
 StartupNotify=true
 StartupWMClass=com.bitwig.BitwigStudio
 EOF
-        print_msg "$GREEN" "✓ Bitwig Studio desktop file created"
-    fi
+    print_msg "$GREEN" "✓ Bitwig Studio desktop file created"
+fi
 
-    # proton mail bridge desktop file fix (wayland flatpak)
-    # desktop file name must match window resourceClass: ch.proton.bridge-gui
-    if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
-        cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
+# proton mail bridge desktop file fix (wayland flatpak)
+# desktop file name must match window resourceClass: ch.proton.bridge-gui
+if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
+    cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Version=1.1
@@ -635,13 +664,13 @@ StartupNotify=true
 X-Desktop-File-Install-Version=0.28
 X-Flatpak=ch.protonmail.protonmail-bridge
 EOF
-        print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created"
-    fi
+    print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created"
+fi
 
-    # proton vpn desktop file fix (wayland flatpak)
-    # desktop file name must match window resourceClass: protonvpn-app
-    if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
-        cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
+# proton vpn desktop file fix (wayland flatpak)
+# desktop file name must match window resourceClass: protonvpn-app
+if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
+    cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
 [Desktop Entry]
 Name=Proton VPN
 Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonvpn-app --file-forwarding com.protonvpn.www @@u %u @@
@@ -655,11 +684,41 @@ Categories=Network;
 X-Desktop-File-Install-Version=0.28
 X-Flatpak=com.protonvpn.www
 EOF
-        print_msg "$GREEN" "✓ Proton VPN desktop file created"
+    print_msg "$GREEN" "✓ Proton VPN desktop file created"
+fi
+
+# RCU (reMarkable Connection Utility) fix
+if [[ -f ~/.local/bin/rcu ]]; then
+    # Ensure icon is in the right place
+    mkdir -p ~/.local/share/icons
+    if [[ -f ~/.local/share/applications/davisr-rcu.png ]]; then
+        cp ~/.local/share/applications/davisr-rcu.png ~/.local/share/icons/davisr-rcu.png
     fi
 
-    update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
-    print_msg "$GREEN" "Desktop icon fixes applied!"
+    cat > ~/.local/share/applications/davisr-rcu.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=RCU
+Comment=Manage your reMarkable tablet
+Exec=/home/ianfundere/.local/bin/rcu
+Icon=davisr-rcu
+StartupWMClass=rcu
+Terminal=false
+Categories=Utility;
+Version=1.0
+EOF
+    print_msg "$GREEN" "✓ RCU desktop file created"
+fi
+
+update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
+print_msg "$GREEN" "Desktop icon fixes applied!"
+FIXEOF
+
+    chmod +x ~/bin/fix-app-icons.sh
+    print_msg "$GREEN" "✓ Created ~/bin/fix-app-icons.sh"
+
+    # Run the script
+    ~/bin/fix-app-icons.sh
 }
 
 restore_music_production() {
