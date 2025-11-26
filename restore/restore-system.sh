@@ -576,8 +576,8 @@ print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 mkdir -p ~/.local/share/applications
 
 # signal desktop file fix (wayland)
-# desktop file name must match window class: signal.desktop not signal-desktop.desktop
-cat > ~/.local/share/applications/signal.desktop <<'EOF'
+# override system signal-desktop.desktop with correct StartupWMClass
+cat > ~/.local/share/applications/signal-desktop.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Signal
@@ -593,17 +593,8 @@ X-GNOME-UsesNotifications=true
 EOF
 print_msg "$GREEN" "✓ Signal desktop file created"
 
-# mask the system signal-desktop.desktop to avoid duplicates
-if [[ -f /usr/share/applications/signal-desktop.desktop ]]; then
-    cat > ~/.local/share/applications/signal-desktop.desktop <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Signal
-Exec=
-Hidden=true
-EOF
-    print_msg "$GREEN" "✓ System Signal desktop file masked"
-fi
+# remove old signal.desktop if it exists (we now use signal-desktop.desktop)
+rm -f ~/.local/share/applications/signal.desktop 2>/dev/null
 
 # bitwig studio desktop file fix (x11)
 # startupwmclass must match java class name
@@ -695,18 +686,23 @@ if [[ -f ~/.local/bin/rcu ]]; then
         cp ~/.local/share/applications/davisr-rcu.png ~/.local/share/icons/davisr-rcu.png
     fi
 
-    cat > ~/.local/share/applications/davisr-rcu.desktop <<'EOF'
+    # Desktop file name and StartupWMClass must match resourceClass: me.davisr.rcu
+    cat > ~/.local/share/applications/me.davisr.rcu.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=RCU
 Comment=Manage your reMarkable tablet
 Exec=/home/ianfundere/.local/bin/rcu
-Icon=davisr-rcu
-StartupWMClass=rcu
+Icon=/home/ianfundere/.local/share/icons/davisr-rcu.png
+StartupWMClass=me.davisr.rcu
 Terminal=false
 Categories=Utility;
 Version=1.0
 EOF
+
+    # Remove old desktop file
+    rm -f ~/.local/share/applications/davisr-rcu.desktop 2>/dev/null
+
     print_msg "$GREEN" "✓ RCU desktop file created"
 fi
 
