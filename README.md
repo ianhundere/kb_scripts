@@ -5,6 +5,8 @@ System management and automation tools for ThinkPad T14s AMD Gen 1 running Arch 
 ## Contents
 
 - **[restore/](restore/)** - System restoration script for Borg-based recovery
+- **[audio/](audio/)** - Low-latency PipeWire audio configuration (2.67ms latency)
+- **[docs/](docs/)** - Project documentation and configuration guides
 - **[keyboard/](keyboard/)** - USB keyboard management with keyd
 - **[kde-plasma/](kde-plasma/)** - KDE Plasma configurations and customizations
 - **[cron-systemd/](cron-systemd/)** - Automated backup scheduling
@@ -23,6 +25,9 @@ All scripts require environment variables - no hardcoded credentials. See [cron-
 ## Quick Links
 
 - [Restore System Documentation](restore/README.md)
+- [Audio Configuration Guide](docs/audio-configuration-summary.md)
+- [Audio Setup Instructions](audio/README.md)
+- [Documentation Index](docs/README.md)
 - [Keyboard Scripts Documentation](keyboard/README.md)
 - [KDE Plasma Configuration](kde-plasma/README.md)
 - [Backup Scheduling](cron-systemd/README.md)

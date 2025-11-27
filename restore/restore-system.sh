@@ -485,19 +485,22 @@ install_flatpak_apps() {
 install_music_production() {
     print_msg "$BLUE" "installing music production stack..."
     install_pkgs "music production" \
-        yabridge yabridgectl wine-staging jack2 qpwgraph rtirq
+        yabridge yabridgectl wine-staging jack2 qpwgraph rtirq realtime-privileges
 
-    # audio realtime limits
-    run_cmd "would configure audio realtime limits" \
-        sudo tee /etc/security/limits.d/audio.conf > /dev/null <<'EOF'
-# Audio realtime limits for yabridge and audio production
-@audio   -  rtprio     95
-@audio   -  memlock    unlimited
-@audio   -  nice      -19
-EOF
+    # Note: realtime-privileges package automatically configures RT limits via PAM
+    # No need for manual /etc/security/limits.d/audio.conf
+    # The package provides:
+    #   @realtime   -  rtprio     95
+    #   @realtime   -  memlock    unlimited
+    # Users in 'realtime' and 'audio' groups get these privileges automatically
 
-    # Add user to audio group
-    sudo usermod -aG audio "$RESTORE_USER"
+    # Add user to audio and realtime groups
+    if [[ "$DRY_RUN" != "true" ]]; then
+        sudo usermod -aG audio,realtime "$RESTORE_USER"
+        print_msg "$GREEN" "✓ Added $RESTORE_USER to audio and realtime groups"
+    else
+        print_msg "$BLUE" "[DRY RUN] Would add $RESTORE_USER to audio and realtime groups"
+    fi
 
     # Configure rtirq for audio interrupt priority
     run_cmd "would configure rtirq for audio priority" \
@@ -545,7 +548,7 @@ EOF
     fi
 
     print_msg "$GREEN" "Music production tools installed!"
-    print_msg "$YELLOW" "Note: Log out and back in for audio group to take effect"
+    print_msg "$YELLOW" "Note: Log out and back in for audio/realtime groups to take effect"
 }
 
 fix_desktop_icons() {
