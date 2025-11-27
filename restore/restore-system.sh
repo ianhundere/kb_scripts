@@ -1123,6 +1123,82 @@ EOF
     print_msg "$GREEN" "System security configured!"
 }
 
+setup_audio_lowlatency() {
+    print_msg "$BLUE" "Configuring Low-Latency Audio (PipeWire)..."
+
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local audio_config_dir="$script_dir/../audio"
+
+    if [[ ! -d "$audio_config_dir" ]]; then
+        log_warning "Audio config directory not found: $audio_config_dir"
+        return 1
+    fi
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would install low-latency audio config"
+        return 0
+    fi
+
+    # Create user config directories
+    mkdir -p ~/.config/pipewire/pipewire.conf.d
+    mkdir -p ~/.config/wireplumber/main.lua.d
+
+    # Copy PipeWire low-latency config
+    if [[ -f "$audio_config_dir/pipewire/99-lowlatency.conf" ]]; then
+        cp "$audio_config_dir/pipewire/99-lowlatency.conf" ~/.config/pipewire/pipewire.conf.d/
+        print_msg "$GREEN" "✓ PipeWire low-latency config installed"
+    else
+        log_warning "PipeWire config not found"
+    fi
+
+    # Copy WirePlumber ALSA low-latency config
+    if [[ -f "$audio_config_dir/wireplumber/90-alsa-lowlatency.lua" ]]; then
+        cp "$audio_config_dir/wireplumber/90-alsa-lowlatency.lua" ~/.config/wireplumber/main.lua.d/
+        print_msg "$GREEN" "✓ WirePlumber ALSA config installed"
+    else
+        log_warning "WirePlumber config not found"
+    fi
+
+    # Create ALSA default device config
+    if [[ ! -f ~/.asoundrc ]]; then
+        cat > ~/.asoundrc <<'EOF'
+pcm.!default {
+    type pipewire
+}
+
+ctl.!default {
+    type pipewire
+}
+EOF
+        print_msg "$GREEN" "✓ ALSA default device configured"
+    fi
+
+    # Set audio card to HiFi profile (if not in pro-audio mode)
+    local card_profile=$(pactl list cards short 2>/dev/null | grep "pci-0000_07_00.6" || true)
+    if [[ -n "$card_profile" ]]; then
+        pactl set-card-profile alsa_card.pci-0000_07_00.6 "HiFi (Mic1, Mic2, Speaker)" 2>/dev/null || true
+        print_msg "$GREEN" "✓ Audio card set to HiFi profile"
+    fi
+
+    # Restart PipeWire services to apply changes
+    print_msg "$YELLOW" "Restarting PipeWire services..."
+    systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
+    sleep 2
+
+    # Verify settings
+    if command -v pw-metadata &>/dev/null; then
+        local quantum=$(pw-metadata -n settings 2>/dev/null | grep "clock.quantum" | awk -F"'" '{print $4}')
+        if [[ "$quantum" = "128" ]]; then
+            print_msg "$GREEN" "✓ Low-latency audio configured (quantum=$quantum @ 48kHz = ~2.67ms)"
+        else
+            log_warning "Quantum not set to 128 (got: $quantum)"
+        fi
+    fi
+
+    print_msg "$GREEN" "Audio configuration complete!"
+    print_msg "$BLUE" "Note: Latency reduced from ~10.67ms to ~2.67ms"
+}
+
 # --- MAIN ---
 
 full_setup() {
@@ -1147,6 +1223,7 @@ full_setup() {
     install_music_production
     install_yay_and_aur
 
+    setup_audio_lowlatency
     setup_t14s_hardware
     setup_t14s_power
     setup_security
@@ -1191,6 +1268,7 @@ Commands:
   install-apps        Install desktop applications
   install-flatpaks    Install flatpak applications (Thunderbird, ProtonVPN, etc.)
   install-music       Install music production stack (yabridge, wine)
+  setup-audio         Configure low-latency PipeWire audio (quantum=128, ~2.67ms latency)
   setup-power         Configure T14s power management
   setup-security      Configure firewall + SSH hardening
   fix-icons           Fix desktop icons for KDE Wayland/X11 (Signal, Bitwig, Proton apps)
@@ -1234,6 +1312,7 @@ case "$1" in
     install-apps) install_desktop_apps ;;
     install-flatpaks) install_flatpak_apps ;;
     install-music) install_music_production ;;
+    setup-audio) setup_audio_lowlatency ;;
     setup-power) setup_t14s_power ;;
     setup-security) setup_security ;;
     fix-icons) fix_desktop_icons ;;
