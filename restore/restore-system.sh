@@ -417,7 +417,7 @@ install_base_tools() {
     print_msg "$BLUE" "installing base/dev tools..."
     install_pkgs "base/dev tools" \
         base-devel git vim curl wget rsync less \
-        traceroute inetutils tcpdump net-tools bind nmap \
+        traceroute inetutils tcpdump bind nmap \
         clamav htop btop tree ripgrep fd bat fzf jq yq \
         openssh borg ufw rkhunter
 }
@@ -427,7 +427,7 @@ install_lean_kde() {
     install_pkgs "lean kde" \
         plasma-meta plasma-workspace \
         dolphin konsole kate ark gwenview spectacle okular kcalc \
-        kwalletmanager ffmpegthumbs \
+        kwalletmanager \
         xdg-utils bluez-utils cups \
         zsh-completions
 }
@@ -466,7 +466,6 @@ install_flatpak_apps() {
         "org.mozilla.Thunderbird"
         "ch.protonmail.protonmail-bridge"
         "com.protonvpn.www"
-        "com.ulduzsoft.Birdtray"
         "com.vixalien.sticky"
         "io.github.martchus.syncthingtray"
     )
@@ -486,9 +485,9 @@ install_flatpak_apps() {
 install_music_production() {
     print_msg "$BLUE" "installing music production stack..."
     install_pkgs "music production" \
-        yabridge yabridgectl wine-staging jack2 qjackctl rtirq
+        yabridge yabridgectl wine-staging jack2 qpwgraph rtirq
 
-    # audio realtime limits (fixes yabridge memlock warning)
+    # audio realtime limits
     run_cmd "would configure audio realtime limits" \
         sudo tee /etc/security/limits.d/audio.conf > /dev/null <<'EOF'
 # Audio realtime limits for yabridge and audio production
@@ -710,7 +709,6 @@ Categories=Utility;
 Version=1.0
 EOF
 
-    # Remove old desktop file
     rm -f ~/.local/share/applications/davisr-rcu.desktop 2>/dev/null
 
     print_msg "$GREEN" "✓ RCU desktop file created"
@@ -821,6 +819,7 @@ install_yay_and_aur() {
 
     local aur_pkgs=(
         visual-studio-code-bin
+        windsurf
         mission-center
         tlpui
         thinkfan
@@ -828,9 +827,11 @@ install_yay_and_aur() {
         clamtk
         python-llfuse
         bitwig-studio
+        yabridge-bin
         ocenaudio-bin
         sononym
         stickee
+        downgrade
     )
 
     if [[ "$DRY_RUN" = "true" ]]; then
@@ -882,6 +883,7 @@ EOF
 
     print_msg "$GREEN" "Hardware drivers installed."
 }
+
 
 setup_t14s_power() {
     print_msg "$BLUE" "Configuring T14s Power (TLP & Thinkfan)..."
@@ -939,13 +941,13 @@ EOF
 TLP_ENABLE=1
 TLP_DEFAULT_MODE=BAT
 
-CPU_DRIVER_OPMODE_ON_AC=active
-CPU_DRIVER_OPMODE_ON_BAT=active
+#CPU_DRIVER_OPMODE_ON_AC=active
+#CPU_DRIVER_OPMODE_ON_BAT=active
 
-CPU_SCALING_GOVERNOR_ON_AC=powersave
+CPU_SCALING_GOVERNOR_ON_AC=performance
 CPU_SCALING_GOVERNOR_ON_BAT=powersave
 
-CPU_ENERGY_PERF_POLICY_ON_AC=balance_performance
+CPU_ENERGY_PERF_POLICY_ON_AC=performance
 CPU_ENERGY_PERF_POLICY_ON_BAT=power
 
 CPU_BOOST_ON_AC=1
@@ -960,7 +962,7 @@ SCHED_POWERSAVE_ON_BAT=1
 NMI_WATCHDOG=0
 
 PLATFORM_PROFILE_ON_AC=performance
-PLATFORM_PROFILE_ON_BAT=balanced
+PLATFORM_PROFILE_ON_BAT=low-power
 
 DISK_IDLE_SECS_ON_AC=0
 DISK_IDLE_SECS_ON_BAT=2
@@ -982,6 +984,10 @@ PCIE_ASPM_ON_BAT=powersupersave
 RUNTIME_PM_ON_AC=on
 RUNTIME_PM_ON_BAT=auto
 
+# RADEON DPM (AMD GPU)
+RADEON_DPM_PERF_LEVEL_ON_AC=auto
+RADEON_DPM_PERF_LEVEL_ON_BAT=auto
+
 USB_AUTOSUSPEND=1
 USB_DENYLIST="04f2:b67c 8087:0026"
 USB_EXCLUDE_BTUSB=1
@@ -1001,7 +1007,7 @@ RESTORE_THRESHOLDS_ON_BAT=1
 
 NATACPI_ENABLE=1
 TPACPI_ENABLE=1
-TPSMAPI_ENABLE=1
+TPSMAPI_ENABLE=0
 TLPEOF
 
     # 5. Thinkfan Configuration (Embedded - T14s AMD optimized)
@@ -1011,29 +1017,39 @@ TLPEOF
     print_msg "$YELLOW" "Installing optimized Thinkfan config..."
     sudo tee /etc/thinkfan.yaml > /dev/null <<'THINKFANEOF'
 sensors:
-  - hwmon: /sys/devices/platform/thinkpad_hwmon/hwmon
-    indices: [1, 3, 4, 5, 6, 7]
-  - hwmon: /sys/devices/platform/coretemp.0/hwmon
-    indices: [1, 2, 3, 4, 5, 6, 7, 8, 10, 11]
-  - tpacpi: /proc/acpi/ibm/thermal
-    indices: [1, 2, 3, 4]
-    max_errors: 10
+  # CPU (k10temp)
+  - type: hwmon
+    name: k10temp
+    indices: [1]
+
+  # GPU (amdgpu)
+  - type: hwmon
+    name: amdgpu
+    indices: [1]
+
+  # System (thinkpad)
+  - type: hwmon
+    name: thinkpad
+    indices: [1]
+
+  # WiFi (iwlwifi)
+  - type: hwmon
+    name: iwlwifi_1
+    indices: [1]
 
 fans:
   - tpacpi: /proc/acpi/ibm/fan
-    max_errors: 10
 
 levels:
   - [0, 0, 45]
-  - [1, 39, 52]
-  - [2, 51, 55]
-  - [3, 54, 58]
-  - [4, 56, 66]
-  - [5, 64, 70]
-  - [6, 68, 80]
-  - [7, 79, 86]
-  - ["level auto", 54, 75]
-  - ["level disengaged", 70, 255]
+  - [1, 40, 50]
+  - [2, 45, 55]
+  - [3, 50, 60]
+  - [4, 55, 65]
+  - [5, 60, 70]
+  - [6, 65, 75]
+  - [7, 70, 85]
+  - ["level auto", 80, 255]
 THINKFANEOF
 
     # 6. amd p-state driver check (optional - better for ryzen mobile)
