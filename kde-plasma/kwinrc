@@ -3,6 +3,10 @@ Id_1=0ca89533-d5b3-43ca-81a7-ea6a0e34bd97
 Id_2=3ced239b-d75a-46ed-adb6-051b32a6c586
 Id_3=2f16a5ff-d803-4c43-be1f-85552f9c6b75
 Id_4=c447c6a3-b1d0-45a8-b63d-435fdc276695
+Name_1=1
+Name_2=2
+Name_3=3
+Name_4=4
 Number=4
 Rows=2
 
@@ -47,6 +51,12 @@ tiles={"layoutDirection":"horizontal","tiles":[{"layoutDirection":"vertical","ti
 [Tiling][c519636c-a39b-418c-a67b-77c34116f98e][d697fc43-5164-42cf-9329-d57b8282328e]
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][f009fc45-201a-480d-9fdf-11369e8d8450][d697fc43-5164-42cf-9329-d57b8282328e]
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][fcfea817-6e59-4eda-bbba-75e3e82d7352][d697fc43-5164-42cf-9329-d57b8282328e]
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Windows]
 ActiveMouseScreen=false
 BorderlessMaximizedWindows=true
@@ -56,7 +66,7 @@ RollOverDesktops=true
 SeparateScreenFocus=true
 
 [Xwayland]
-Scale=1.5
+Scale=1
 
 [org.kde.kdecoration2]
 BorderSize=Tiny
