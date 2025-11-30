@@ -1020,25 +1020,7 @@ TLPEOF
     print_msg "$YELLOW" "Installing optimized Thinkfan config..."
     sudo tee /etc/thinkfan.yaml > /dev/null <<'THINKFANEOF'
 sensors:
-  # CPU (k10temp)
-  - type: hwmon
-    name: k10temp
-    indices: [1]
-
-  # GPU (amdgpu)
-  - type: hwmon
-    name: amdgpu
-    indices: [1]
-
-  # System (thinkpad)
-  - type: hwmon
-    name: thinkpad
-    indices: [1]
-
-  # WiFi (iwlwifi)
-  - type: hwmon
-    name: iwlwifi_1
-    indices: [1]
+  - tpacpi: /proc/acpi/ibm/thermal
 
 fans:
   - tpacpi: /proc/acpi/ibm/fan
