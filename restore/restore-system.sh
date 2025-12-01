@@ -425,7 +425,7 @@ install_base_tools() {
 install_lean_kde() {
     print_msg "$BLUE" "installing lean kde..."
     install_pkgs "lean kde" \
-        plasma-meta plasma-workspace \
+        plasma-meta plasma-workspace plasma-workspace-x11 \
         dolphin konsole kate ark gwenview spectacle okular kcalc \
         kwalletmanager \
         xdg-utils bluez-utils cups \
