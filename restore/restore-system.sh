@@ -862,6 +862,11 @@ setup_backup_tools() {
             sudo chmod 644 /etc/cron.d/timeshift_hourly
             print_msg "$GREEN" "✓ Installed timeshift_hourly cron"
         fi
+        if [[ -f "$cron_dir/timeshift.json" ]]; then
+            sudo cp "$cron_dir/timeshift.json" /etc/timeshift/timeshift.json
+            sudo chmod 644 /etc/timeshift/timeshift.json
+            print_msg "$GREEN" "✓ Installed timeshift.json config"
+        fi
     else
         log_warning "cron-systemd directory not found"
     fi
