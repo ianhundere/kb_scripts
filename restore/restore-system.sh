@@ -578,7 +578,6 @@ print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 mkdir -p ~/.local/share/applications
 
 # signal desktop file fix (wayland)
-# desktop file name must match window class: signal.desktop not signal-desktop.desktop
 cat > ~/.local/share/applications/signal.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
@@ -593,19 +592,7 @@ MimeType=x-scheme-handler/sgnl;x-scheme-handler/signalcaptcha;
 Keywords=sgnl;chat;im;messaging;messenger;security;privat;
 X-GNOME-UsesNotifications=true
 EOF
-print_msg "$GREEN" "✓ Signal desktop file created"
-
-# mask the system signal-desktop.desktop to avoid duplicates
-if [[ -f /usr/share/applications/signal-desktop.desktop ]]; then
-    cat > ~/.local/share/applications/signal-desktop.desktop <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Signal
-Exec=
-Hidden=true
-EOF
-    print_msg "$GREEN" "✓ System Signal desktop file masked"
-fi
+print_msg "$GREEN" "✓ Signal desktop file created" 
 
 # bitwig studio desktop file fix (x11)
 # startupwmclass must match java class name
