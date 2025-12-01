@@ -62,7 +62,6 @@ ActiveMouseScreen=false
 BorderlessMaximizedWindows=true
 ElectricBorderMaximize=false
 ElectricBorderTiling=false
-RollOverDesktops=true
 SeparateScreenFocus=true
 
 [Xwayland]

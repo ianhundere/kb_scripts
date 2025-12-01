@@ -23,14 +23,14 @@ DialogWidth=810
 
 [Containments][25][Applets][32][Configuration][General]
 iconSpacing=0
-launchers=preferred://browser,applications:org.mozilla.Thunderbird.desktop,applications:sononym.desktop,applications:ocenaudio.desktop,applications:com.bitwig.BitwigStudioBeta.desktop,applications:obsidian.desktop,applications:me.davisr.rcu.desktop,applications:code.desktop,applications:org.kde.konsole.desktop,applications:discord.desktop,applications:signal.desktop,applications:steam.desktop,applications:bitwarden.desktop,preferred://filemanager,applications:systemsettings.desktop
+launchers=preferred://browser,applications:org.mozilla.Thunderbird.desktop,applications:ocenaudio.desktop,applications:com.bitwig.BitwigStudioBeta.desktop,applications:obsidian.desktop,applications:me.davisr.rcu.desktop,applications:code.desktop,applications:org.kde.konsole.desktop,applications:discord.desktop,applications:signal.desktop,applications:steam.desktop,applications:bitwarden.desktop,preferred://filemanager,applications:systemsettings.desktop
 
 [Containments][25][Applets][33]
 immutability=1
 plugin=org.kde.plasma.devicenotifier
 
 [Containments][25][Applets][33][Configuration]
-PreloadWeight=85
+PreloadWeight=100
 popupHeight=400
 popupWidth=560
 
@@ -52,7 +52,7 @@ plugin=org.kde.plasma.systemmonitor.memory
 
 [Containments][34][Applets][102][Configuration]
 CurrentPreset=org.kde.plasma.systemmonitor
-PreloadWeight=80
+PreloadWeight=90
 popupHeight=235
 popupWidth=238
 
@@ -74,7 +74,7 @@ plugin=org.kde.plasma.systemmonitor.cpu
 
 [Containments][34][Applets][103][Configuration]
 CurrentPreset=org.kde.plasma.systemmonitor
-PreloadWeight=70
+PreloadWeight=80
 popupHeight=257
 popupWidth=156
 
@@ -132,6 +132,9 @@ plugin=org.kde.plasma.keyboardindicator
 immutability=1
 plugin=org.kde.plasma.devicenotifier
 
+[Containments][34][Applets][122][Applets][129][Configuration]
+PreloadWeight=100
+
 [Containments][34][Applets][122][Applets][130]
 immutability=1
 plugin=org.kde.plasma.weather
@@ -145,7 +148,7 @@ immutability=1
 plugin=org.kde.plasma.networkmanagement
 
 [Containments][34][Applets][122][Applets][132][Configuration]
-PreloadWeight=75
+PreloadWeight=100
 
 [Containments][34][Applets][122][Applets][132][Configuration][General]
 currentDetailsTab=details
@@ -155,11 +158,11 @@ immutability=1
 plugin=org.kde.plasma.volume
 
 [Containments][34][Applets][122][Applets][133][Configuration]
-PreloadWeight=55
+PreloadWeight=85
 
 [Containments][34][Applets][122][Applets][133][Configuration][General]
-currentTab=streams
 migrated=true
+showVirtualDevices=true
 
 [Containments][34][Applets][122][Applets][134]
 immutability=1
@@ -170,7 +173,7 @@ immutability=1
 plugin=org.kde.plasma.notifications
 
 [Containments][34][Applets][122][Applets][135][Configuration]
-PreloadWeight=65
+PreloadWeight=70
 
 [Containments][34][Applets][122][Applets][136]
 immutability=1
@@ -184,14 +187,14 @@ immutability=1
 plugin=org.kde.plasma.brightness
 
 [Containments][34][Applets][122][Applets][137][Configuration]
-PreloadWeight=62
+PreloadWeight=48
 
 [Containments][34][Applets][122][Applets][138]
 immutability=1
 plugin=org.kde.plasma.bluetooth
 
 [Containments][34][Applets][122][Applets][138][Configuration]
-PreloadWeight=34
+PreloadWeight=18
 
 [Containments][34][Applets][122][Applets][139][Configuration]
 PreloadWeight=42

@@ -5,3 +5,7 @@ ViewPropsTimestamp=2025,11,16,12,11,29.282
 [KFileDialog Settings]
 Places Icons Auto-resize=false
 Places Icons Static Size=22
+
+[ViewPropertiesDialog]
+1920x1080 screen: Height=584
+1920x1080 screen: Width=379

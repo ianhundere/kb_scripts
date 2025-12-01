@@ -419,7 +419,7 @@ install_base_tools() {
         base-devel git vim curl wget rsync less \
         traceroute inetutils tcpdump bind nmap \
         clamav htop btop tree ripgrep fd bat fzf jq yq \
-        openssh borg ufw rkhunter
+        openssh ufw rkhunter
 }
 
 install_lean_kde() {
@@ -436,10 +436,10 @@ install_desktop_apps() {
     print_msg "$BLUE" "installing desktop apps & audio..."
     install_pkgs "desktop apps" \
         firefox chromium obsidian bitwarden signal-desktop \
-        calibre syncthing discord audacity steam \
-        pipewire pipewire-alsa pipewire-pulse pipewire-jack \
+        calibre syncthing discord steam \
+        pipewire pipewire-alsa pipewire-pulse \
         wireplumber pavucontrol alsa-utils vlc \
-        libreoffice-fresh gimp inkscape kdenlive obs-studio
+        libreoffice-fresh gimp inkscape kdenlive fastfetch
 }
 
 install_flatpak_apps() {
@@ -485,7 +485,7 @@ install_flatpak_apps() {
 install_music_production() {
     print_msg "$BLUE" "installing music production stack..."
     install_pkgs "music production" \
-        yabridge yabridgectl wine-staging jack2 qpwgraph rtirq realtime-privileges
+        wine-staging winetricks picard jack2 qpwgraph rtirq realtime-privileges
 
     # Note: realtime-privileges package automatically configures RT limits via PAM
     # No need for manual /etc/security/limits.d/audio.conf
@@ -835,6 +835,8 @@ install_yay_and_aur() {
         sononym
         stickee
         downgrade
+        piper-tts-bin
+        piper-voices-en-us
     )
 
     if [[ "$DRY_RUN" = "true" ]]; then
@@ -843,6 +845,41 @@ install_yay_and_aur() {
     fi
 
     yay -S --needed --noconfirm "${aur_pkgs[@]}"
+}
+
+setup_backup_tools() {
+    print_msg "$BLUE" "Configuring Backup Tools (Timeshift, Borg)..."
+
+    install_pkgs "backup tools" timeshift cronie borg
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would configure Timeshift cron jobs"
+        return 0
+    fi
+
+    # Enable cronie for cron jobs to run
+    sudo systemctl enable --now cronie
+
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local cron_dir="$script_dir/../cron-systemd"
+
+    if [[ -d "$cron_dir" ]]; then
+        print_msg "$YELLOW" "Installing Timeshift cron jobs..."
+        if [[ -f "$cron_dir/timeshift_boot.cron" ]]; then
+            sudo cp "$cron_dir/timeshift_boot.cron" /etc/cron.d/timeshift_boot
+            sudo chmod 644 /etc/cron.d/timeshift_boot
+            print_msg "$GREEN" "✓ Installed timeshift_boot cron"
+        fi
+        if [[ -f "$cron_dir/timeshift_hourly.cron" ]]; then
+            sudo cp "$cron_dir/timeshift_hourly.cron" /etc/cron.d/timeshift_hourly
+            sudo chmod 644 /etc/cron.d/timeshift_hourly
+            print_msg "$GREEN" "✓ Installed timeshift_hourly cron"
+        fi
+    else
+        log_warning "cron-systemd directory not found"
+    fi
+    
+    print_msg "$GREEN" "Backup tools configured!"
 }
 
 # --- HARDWARE SETUP ---
@@ -986,10 +1023,6 @@ PCIE_ASPM_ON_BAT=powersupersave
 
 RUNTIME_PM_ON_AC=on
 RUNTIME_PM_ON_BAT=auto
-
-# RADEON DPM (AMD GPU)
-RADEON_DPM_PERF_LEVEL_ON_AC=auto
-RADEON_DPM_PERF_LEVEL_ON_BAT=auto
 
 USB_AUTOSUSPEND=1
 USB_DENYLIST="04f2:b67c 8087:0026"
@@ -1207,6 +1240,7 @@ full_setup() {
     install_flatpak_apps
     install_music_production
     install_yay_and_aur
+    setup_backup_tools
 
     setup_audio_lowlatency
     setup_t14s_hardware
@@ -1253,6 +1287,7 @@ Commands:
   install-apps        Install desktop applications
   install-flatpaks    Install flatpak applications (Thunderbird, ProtonVPN, etc.)
   install-music       Install music production stack (yabridge, wine)
+  setup-backup        Configure backup tools (Timeshift + cron)
   setup-audio         Configure low-latency PipeWire audio (quantum=128, ~2.67ms latency)
   setup-power         Configure T14s power management
   setup-security      Configure firewall + SSH hardening
@@ -1297,6 +1332,7 @@ case "$1" in
     install-apps) install_desktop_apps ;;
     install-flatpaks) install_flatpak_apps ;;
     install-music) install_music_production ;;
+    setup-backup) setup_backup_tools ;;
     setup-audio) setup_audio_lowlatency ;;
     setup-power) setup_t14s_power ;;
     setup-security) setup_security ;;
