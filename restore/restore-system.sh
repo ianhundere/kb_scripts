@@ -881,7 +881,7 @@ setup_t14s_hardware() {
 
     local pkgs=(
         tlp tlp-rdw acpi_call smartmontools
-        amd-ucode vulkan-radeon xf86-video-amdgpu mesa-demos sof-firmware
+        amd-ucode vulkan-radeon lib32-vulkan-radeon xf86-video-amdgpu mesa-demos sof-firmware
         fprintd libfprint iwd networkmanager network-manager-applet wireless_tools
         fwupd keyd zram-generator
     )
