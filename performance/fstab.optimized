@@ -1,0 +1,21 @@
+# Static information about the filesystems.
+# See fstab(5) for details.
+
+# <file system> <dir> <type> <options> <dump> <pass>
+# /dev/mapper/ArchinstallVg-root
+# OPTIMIZED for LUKS/LVM: noatime (reduces writes), commit=60 (less frequent commits)
+# NOTE: discard=async removed - using fstrim.timer instead (safer for encrypted systems)
+UUID=a4998359-7bff-49b0-b03a-5a3e2a3871d9	/         	ext4      	rw,noatime,commit=60	0 1
+
+# /dev/mapper/ArchinstallVg-home
+# OPTIMIZED for LUKS/LVM: noatime (reduces writes), commit=60 (less frequent commits)
+# NOTE: discard=async removed - using fstrim.timer instead (safer for encrypted systems)
+UUID=d194b6aa-ff60-429d-a25d-99851b6fcee2	/home     	ext4      	rw,noatime,commit=60	0 2
+
+# /dev/nvme0n1p1
+# BOOT: Keep relatime for compatibility
+UUID=C62C-6BE1      	/boot     	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
+
+
+# External Samples Drive
+UUID=685E-32F9 /mnt/samps exfat rw,uid=1000,gid=1000,dmask=000,fmask=000,nofail,x-systemd.device-timeout=5s

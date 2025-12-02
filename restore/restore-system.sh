@@ -968,59 +968,101 @@ EOF
     print_msg "$YELLOW" "Installing optimized TLP config..."
     sudo tee /etc/tlp.conf > /dev/null <<'TLPEOF'
 # TLP Configuration for ThinkPad T14s AMD Gen 1
-# Optimized for battery life and thermal management
+# TLP 1.9.0 - Three Power Profile System
+#
+# Profiles:
+#   - Performance (AC): _AC suffix - when on AC power or manually selected
+#   - Balanced (BAT):   _BAT suffix - when on battery or manually selected
+#   - Power-Saver (SAV): _SAV suffix - maximum battery savings (NEW in 1.9.0)
+#
+# Switch profiles via GUI: tlpui or desktop power settings
 
 TLP_ENABLE=1
 TLP_DEFAULT_MODE=BAT
 
-#CPU_DRIVER_OPMODE_ON_AC=active
-#CPU_DRIVER_OPMODE_ON_BAT=active
-
+# CPU Scaling Governor
+# performance: maximum frequency | powersave: dynamic scaling
 CPU_SCALING_GOVERNOR_ON_AC=performance
 CPU_SCALING_GOVERNOR_ON_BAT=powersave
+CPU_SCALING_GOVERNOR_ON_SAV=powersave
 
+# CPU Energy/Performance Policy (EPP)
+# performance: max performance | balance_performance: balanced | power: max savings
 CPU_ENERGY_PERF_POLICY_ON_AC=performance
-CPU_ENERGY_PERF_POLICY_ON_BAT=power
+CPU_ENERGY_PERF_POLICY_ON_BAT=balance_performance
+CPU_ENERGY_PERF_POLICY_ON_SAV=power
 
+# CPU Turbo Boost
+# 1: enabled | 0: disabled
 CPU_BOOST_ON_AC=1
 CPU_BOOST_ON_BAT=0
+CPU_BOOST_ON_SAV=0
 
+# CPU Hardware P-State Dynamic Boost
+# 1: enabled | 0: disabled
 CPU_HWP_DYN_BOOST_ON_AC=1
 CPU_HWP_DYN_BOOST_ON_BAT=0
+CPU_HWP_DYN_BOOST_ON_SAV=0
 
+# Scheduler Power Save
+# 0: disabled | 1: enabled
 SCHED_POWERSAVE_ON_AC=0
 SCHED_POWERSAVE_ON_BAT=1
+SCHED_POWERSAVE_ON_SAV=1
 
+# NMI Watchdog (disable for power savings)
 NMI_WATCHDOG=0
 
+# Platform Profile (ACPI platform driver)
+# performance | balanced | low-power | quiet | cool
 PLATFORM_PROFILE_ON_AC=performance
 PLATFORM_PROFILE_ON_BAT=low-power
+PLATFORM_PROFILE_ON_SAV=low-power
 
+# Disk Idle Time (seconds before disk spindown)
 DISK_IDLE_SECS_ON_AC=0
 DISK_IDLE_SECS_ON_BAT=2
+DISK_IDLE_SECS_ON_SAV=2
 
+# Max Lost Work (seconds of data buffered for write)
 MAX_LOST_WORK_SECS_ON_AC=15
 MAX_LOST_WORK_SECS_ON_BAT=15
+MAX_LOST_WORK_SECS_ON_SAV=60
 
+# WiFi Power Management
+# off: disabled | on: enabled
 WIFI_PWR_ON_AC=off
 WIFI_PWR_ON_BAT=on
+WIFI_PWR_ON_SAV=on
 
+# Wake on LAN
 WOL_DISABLE=Y
 
+# Audio Power Save
+# 0: disabled | 1: enabled (with 1 second timeout)
 SOUND_POWER_SAVE_ON_AC=0
 SOUND_POWER_SAVE_ON_BAT=1
+SOUND_POWER_SAVE_ON_SAV=1
 
+# PCIe Active State Power Management
+# default | performance | powersave | powersupersave
 PCIE_ASPM_ON_AC=default
 PCIE_ASPM_ON_BAT=powersupersave
+PCIE_ASPM_ON_SAV=powersupersave
 
+# Runtime Power Management
+# on: enabled | auto: automatic | default: kernel default
 RUNTIME_PM_ON_AC=on
 RUNTIME_PM_ON_BAT=auto
+RUNTIME_PM_ON_SAV=auto
 
+# USB Autosuspend
 USB_AUTOSUSPEND=1
 USB_DENYLIST="04f2:b67c 8087:0026"
 USB_EXCLUDE_BTUSB=1
 USB_EXCLUDE_PHONE=1
 
+# Device State on Startup
 RESTORE_DEVICE_STATE_ON_STARTUP=0
 
 DEVICES_TO_DISABLE_ON_STARTUP="bluetooth wwan nfc"
@@ -1028,11 +1070,14 @@ DEVICES_TO_ENABLE_ON_STARTUP="wifi"
 
 DEVICES_TO_DISABLE_ON_BAT_NOT_IN_USE="bluetooth wwan nfc"
 
+# Battery Charge Thresholds (ThinkPad)
+# Start charging at 40%, stop at 80% for battery longevity
 START_CHARGE_THRESH_BAT0=40
 STOP_CHARGE_THRESH_BAT0=80
 
 RESTORE_THRESHOLDS_ON_BAT=1
 
+# ThinkPad Battery Features
 NATACPI_ENABLE=1
 TPACPI_ENABLE=1
 TPSMAPI_ENABLE=0
@@ -1209,6 +1254,84 @@ EOF
     print_msg "$BLUE" "Note: Latency reduced from ~10.67ms to ~2.67ms"
 }
 
+setup_performance_optimizations() {
+    print_msg "$BLUE" "Applying System Performance Optimizations..."
+
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local perf_config_dir="$script_dir/../performance"
+
+    if [[ ! -d "$perf_config_dir" ]]; then
+        log_warning "Performance config directory not found: $perf_config_dir"
+        return 1
+    fi
+
+    if [[ "$DRY_RUN" = "true" ]]; then
+        print_msg "$BLUE" "[DRY RUN] Would install performance optimizations"
+        return 0
+    fi
+
+    # 1. I/O Schedulers (udev rules)
+    if [[ -f "$perf_config_dir/60-ioschedulers.rules" ]]; then
+        sudo cp "$perf_config_dir/60-ioschedulers.rules" /etc/udev/rules.d/
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger
+        print_msg "$GREEN" "✓ I/O scheduler rules installed"
+    fi
+
+    # 2. System performance tuning (sysctl)
+    if [[ -f "$perf_config_dir/99-sysctl-performance.conf" ]]; then
+        sudo cp "$perf_config_dir/99-sysctl-performance.conf" /etc/sysctl.d/
+        sudo sysctl --system >/dev/null 2>&1
+        print_msg "$GREEN" "✓ Sysctl performance tuning applied"
+    fi
+
+    # 3. Enable systemd-oomd (built-in OOM killer)
+    if systemctl list-unit-files | grep -q "systemd-oomd"; then
+        sudo systemctl enable --now systemd-oomd 2>/dev/null || true
+        print_msg "$GREEN" "✓ systemd-oomd enabled"
+    fi
+
+    # 4. Enable fstrim.timer (SSD TRIM)
+    if systemctl list-unit-files | grep -q "fstrim.timer"; then
+        sudo systemctl enable --now fstrim.timer 2>/dev/null || true
+        print_msg "$GREEN" "✓ fstrim.timer enabled (weekly SSD TRIM)"
+    fi
+
+    # 5. Install Ananicy-CPP for automatic process priority management
+    if ! command -v ananicy-cpp &>/dev/null; then
+        if command -v yay &>/dev/null; then
+            print_msg "$YELLOW" "Installing Ananicy-CPP..."
+            yay -S --needed --noconfirm ananicy-cpp 2>/dev/null || log_warning "Failed to install ananicy-cpp"
+            if command -v ananicy-cpp &>/dev/null; then
+                sudo systemctl enable --now ananicy-cpp 2>/dev/null || true
+                print_msg "$GREEN" "✓ Ananicy-CPP installed and enabled"
+            fi
+        else
+            log_warning "yay not available, skipping ananicy-cpp installation"
+        fi
+    else
+        sudo systemctl enable --now ananicy-cpp 2>/dev/null || true
+        print_msg "$GREEN" "✓ Ananicy-CPP already installed"
+    fi
+
+    # 6. Makepkg.conf optimizations
+    if [[ -f "$perf_config_dir/makepkg.conf.patch" ]]; then
+        print_msg "$YELLOW" "makepkg.conf optimization file available at:"
+        print_msg "$BLUE" "  $perf_config_dir/makepkg.conf.patch"
+        print_msg "$BLUE" "  Review and manually merge into /etc/makepkg.conf"
+    fi
+
+    # 7. fstab optimizations
+    if [[ -f "$perf_config_dir/fstab-optimizations.txt" ]]; then
+        print_msg "$YELLOW" "fstab optimization guide available at:"
+        print_msg "$BLUE" "  $perf_config_dir/fstab-optimizations.txt"
+        print_msg "$BLUE" "  Review and manually apply to /etc/fstab"
+    fi
+
+    print_msg "$GREEN" "Performance optimizations applied!"
+    print_msg "$YELLOW" "Note: Some optimizations (fstab, makepkg.conf) require manual review"
+}
+
 # --- MAIN ---
 
 full_setup() {
@@ -1235,6 +1358,7 @@ full_setup() {
     setup_backup_tools
 
     setup_audio_lowlatency
+    setup_performance_optimizations
     setup_t14s_hardware
     setup_t14s_power
     setup_security
@@ -1281,6 +1405,7 @@ Commands:
   install-music       Install music production stack (yabridge, wine)
   setup-backup        Configure backup tools (Timeshift + cron)
   setup-audio         Configure low-latency PipeWire audio (quantum=128, ~2.67ms latency)
+  setup-performance   Apply system performance optimizations (I/O schedulers, sysctl, OOM, TRIM)
   setup-power         Configure T14s power management
   setup-security      Configure firewall + SSH hardening
   fix-icons           Fix desktop icons for KDE Wayland/X11 (Signal, Bitwig, Proton apps)
@@ -1326,6 +1451,7 @@ case "$1" in
     install-music) install_music_production ;;
     setup-backup) setup_backup_tools ;;
     setup-audio) setup_audio_lowlatency ;;
+    setup-performance) setup_performance_optimizations ;;
     setup-power) setup_t14s_power ;;
     setup-security) setup_security ;;
     fix-icons) fix_desktop_icons ;;

@@ -1,0 +1,18 @@
+# I/O Scheduler optimization for different storage types
+# File: /etc/udev/rules.d/60-ioschedulers.rules
+# Reference: https://wiki.archlinux.org/title/Improving_performance#Storage_devices
+
+# NVMe devices - use 'none' scheduler (NVMe has its own hardware queue management)
+ACTION=="add|change", KERNEL=="nvme[0-9]n[0-9]", ATTR{queue/scheduler}="none"
+
+# SSD (non-NVMe) - use mq-deadline or none
+ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+
+# HDD (rotational) - use bfq for better responsiveness
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+
+# Set read-ahead for SSDs (smaller value for faster random access)
+ACTION=="add|change", KERNEL=="sd[a-z]|nvme[0-9]n[0-9]", ATTR{queue/rotational}=="0", ATTR{bdi/read_ahead_kb}="128"
+
+# Set read-ahead for HDDs (larger value for sequential reads)
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{bdi/read_ahead_kb}="1024"

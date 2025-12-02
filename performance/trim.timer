@@ -1,0 +1,15 @@
+# Weekly TRIM timer for SSD longevity and performance
+# File: /etc/systemd/system/trim.timer (or use fstrim.timer if available)
+# Reference: https://wiki.archlinux.org/title/Solid_state_drive#TRIM
+
+[Unit]
+Description=Weekly TRIM for SSD
+Documentation=man:fstrim
+
+[Timer]
+OnCalendar=weekly
+AccuracySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

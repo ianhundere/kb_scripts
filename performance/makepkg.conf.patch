@@ -1,0 +1,37 @@
+# Optimized makepkg.conf settings for compilation performance
+# To apply: These lines should be added/modified in /etc/makepkg.conf
+# Reference: https://wiki.archlinux.org/title/Improving_performance#Compilation
+
+# ===== Architecture-specific optimization =====
+# -march=native enables CPU-specific optimizations
+# -mtune=native optimizes for the current CPU
+# -O2 is the recommended optimization level (balance of speed and safety)
+CFLAGS="-march=native -mtune=native -O2 -pipe -fno-plt -fexceptions \
+        -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security \
+        -fstack-clash-protection -fcf-protection \
+        -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
+CXXFLAGS="$CFLAGS"
+
+# ===== Parallel compilation =====
+# Use all available cores for compilation
+# Ryzen 7 PRO 4750U has 8 cores / 16 threads
+MAKEFLAGS="-j$(nproc)"
+
+# ===== Compression settings =====
+# Use faster compression for packages to reduce build time
+# zstd is fast and provides good compression ratio
+PKGEXT='.pkg.tar.zst'
+SRCEXT='.src.tar.zst'
+
+# Compression options: higher number = faster but less compression
+# Default is usually 3, increasing to 1 for faster compression
+COMPRESSZST=(zstd -c -T0 --fast=1 -)
+
+# ===== Build environment =====
+# Options for makepkg behavior
+OPTIONS=(strip docs !libtool !staticlibs emptydirs zipman purge !debug !lto)
+
+# ===== Package output =====
+# Uncomment to specify where to put built packages
+# PKGDEST=/home/packages
+# SRCDEST=/home/sources
