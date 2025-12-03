@@ -1,0 +1,60 @@
+#!/bin/bash -ue
+
+info() { printf "\n%s %s\n\n" "$(date)" "$*" >&1; }
+
+backup() {
+  : ${BORG:=borg}
+  : ${PASS:=${BORG_PASSPHRASE_SYS:=}}
+  local uri="${BORG_REPO_SYS}"
+
+  if [[ -n "$PASS" ]]; then
+    export BORG_PASSPHRASE="$PASS"
+  else
+    unset BORG_PASSPHRASE
+  fi
+
+  local prunning="--keep-within 2d --keep-daily 1 --keep-weekly 3 --keep-monthly 3 --keep-yearly 1"
+  local name=t14s_sys
+  local date=$(date "+%F-%T")
+
+  if [[ $(pidof timeshift | wc -w) == 0 ]]; then
+    info "Starting backup with $BORG to $uri"
+    $BORG create \
+      --lock-wait 5 \
+      --verbose \
+      --filter AME \
+      --list \
+      --stats \
+      --show-rc \
+      --compression lz4 \
+      --exclude-caches \
+      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/home/' \
+      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/var/cache/' \
+      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/var/tmp/' \
+      "$uri"::"$name-$date" \
+      /mnt/timeshift/timeshift/**
+    info "Pruning repository"
+    $BORG prune \
+      --list \
+      --glob-archives "$name-" \
+      --show-rc \
+      $prunning \
+      "$uri"
+  else
+    info "Timeshift is running or is about to run, exiting..."
+    exit 1
+  fi
+}
+
+# Set these environment variables before running:
+# export BORG_PASSPHRASE='your-passphrase'
+# export BORG_REPO_SYS='user@host:repo'
+
+if [ -z "$BORG_REPO_SYS" ] || [ -z "$BORG_PASSPHRASE_SYS" ]; then
+  echo "Error: BORG_REPO_SYS and BORG_PASSPHRASE_SYS must be set"
+  echo "Run: export BORG_REPO_SYS='user@host:repo'"
+  echo "Run: export BORG_PASSPHRASE_SYS='your-passphrase'"
+  exit 1
+fi
+
+backup

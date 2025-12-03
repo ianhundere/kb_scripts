@@ -255,6 +255,7 @@ restore_misc_configs() {
 
     safe_extract "$BORG_REPO" "$archive" \
         "home/$RESTORE_USER/.gitconfig" \
+        "home/$RESTORE_USER/.config/borg/env" \
         "home/$RESTORE_USER/.ssh/config" \
         "home/$RESTORE_USER/.gnupg" \
         "home/$RESTORE_USER/.docker" \
@@ -272,6 +273,13 @@ restore_misc_configs() {
     fi
 
     [[ -f "home/$RESTORE_USER/.gitconfig" ]] && cp "home/$RESTORE_USER/.gitconfig" ~/
+    copy_if_exists ".config/borg/env"
+
+    # Set permissions for borg credentials
+    if [[ -f ~/.config/borg/env ]]; then
+        chmod 600 ~/.config/borg/env
+        print_msg "$GREEN" "✓ Set 600 permissions for ~/.config/borg/env"
+    fi
 
     # Ensure git core.editor is set to code --wait
     if command -v git &>/dev/null; then
@@ -885,6 +893,7 @@ setup_backup_tools() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local cron_dir="$script_dir/../cron-systemd"
 
+    # --- Timeshift Automation ---
     if [[ -d "$cron_dir" ]]; then
         print_msg "$YELLOW" "Installing Timeshift cron jobs..."
         if [[ -f "$cron_dir/timeshift_boot.cron" ]]; then
@@ -903,10 +912,43 @@ setup_backup_tools() {
             print_msg "$GREEN" "✓ Installed timeshift.json config"
         fi
     else
-        log_warning "cron-systemd directory not found"
+        log_warning "cron-systemd directory not found for Timeshift setup"
     fi
-    
+
+    # --- Borg Backup Automation ---
+    print_msg "$YELLOW" "Installing Borg backup scripts and cron job..."
+
+    local borg_scripts_dir="$script_dir/../cron-systemd/borg-scripts"
+    if [[ -d "$borg_scripts_dir" ]]; then
+        mkdir -p ~/bin
+
+        # Copy scripts
+        cp "$borg_scripts_dir/backup-wrapper.sh" ~/bin/
+        cp "$borg_scripts_dir/backup_t14s_home" ~/bin/
+        cp "$borg_scripts_dir/backup_t14s_sys" ~/bin/
+        cp "$borg_scripts_dir/backup_full_sys" ~/bin/
+
+        # Make them executable
+        chmod +x ~/bin/backup-wrapper.sh
+        chmod +x ~/bin/backup_t14s_home
+        chmod +x ~/bin/backup_t14s_sys
+        chmod +x ~/bin/backup_full_sys
+        print_msg "$GREEN" "✓ Copied Borg backup scripts to ~/bin/"
+
+        # Install borg-home cron job
+        local borg_cron_file="$borg_scripts_dir/borg-home.cron"
+        if [[ -f "$borg_cron_file" ]]; then
+            # Add to user's crontab if not already there
+            (crontab -l 2>/dev/null | grep -v -F "$(cat "$borg_cron_file")"; cat "$borg_cron_file") | crontab -
+            print_msg "$GREEN" "✓ Installed Borg home backup cron job"
+        fi
+
+    else
+        log_warning "Borg scripts directory not found: $borg_scripts_dir"
+    fi
+
     print_msg "$GREEN" "Backup tools configured!"
+}
 }
 
 # --- HARDWARE SETUP ---
