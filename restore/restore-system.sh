@@ -151,13 +151,41 @@ restore_shell_config() {
         "home/$RESTORE_USER/.zshrc" \
         "home/$RESTORE_USER/.zsh_history" \
         "home/$RESTORE_USER/.p10k.zsh" \
-        "home/$RESTORE_USER/powerlevel10k"
+        "home/$RESTORE_USER/powerlevel10k" \
+        "home/$RESTORE_USER/.vimrc"
 
     # copy files if exist
     copy_if_exists ".zshrc"
     copy_if_exists ".p10k.zsh"
     copy_if_exists ".zsh_history"
     copy_if_exists "powerlevel10k"
+    copy_if_exists ".vimrc"
+
+    # Ensure vim mouse fix is applied (disable visual mode selection)
+    if [[ -f ~/.vimrc ]]; then
+        if ! grep -q "autocmd VimEnter .* set mouse=" ~/.vimrc; then
+            # Remove old/conflicting settings
+            sed -i "/set mouse=/d" ~/.vimrc
+            # Add robust fix
+            echo "autocmd VimEnter * set mouse=" >> ~/.vimrc
+            print_msg "$GREEN" "✓ Applied vim mouse fix"
+        fi
+    else
+        echo "autocmd VimEnter * set mouse=" > ~/.vimrc
+        print_msg "$GREEN" "✓ Created .vimrc with mouse fix"
+    fi
+
+    # Ensure vi alias and editor exports exist in .zshrc
+    if [[ -f ~/.zshrc ]]; then
+        if ! grep -q "alias vi=\"vim\"" ~/.zshrc; then
+             echo "" >> ~/.zshrc
+             echo "# Editor Config" >> ~/.zshrc
+             echo "alias vi=\"vim\"" >> ~/.zshrc
+             echo "export EDITOR=\"vim\"" >> ~/.zshrc
+             echo "export VISUAL=\"vim\"" >> ~/.zshrc
+             print_msg "$GREEN" "✓ Added vim alias/exports to .zshrc"
+        fi
+    fi
 
     # install autosuggestions if missing
     if ! pacman -Qi zsh-autosuggestions &> /dev/null; then
@@ -245,6 +273,13 @@ restore_misc_configs() {
 
     [[ -f "home/$RESTORE_USER/.gitconfig" ]] && cp "home/$RESTORE_USER/.gitconfig" ~/
 
+    # Ensure git core.editor is set to code --wait
+    if command -v git &>/dev/null; then
+        if ! git config --global core.editor | grep -q "code --wait"; then
+            git config --global core.editor "code --wait"
+            print_msg "$GREEN" "✓ Set git core.editor to code --wait"
+        fi
+    fi
     if [[ -f "home/$RESTORE_USER/.ssh/config" ]]; then
         [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
         cp "home/$RESTORE_USER/.ssh/config" ~/.ssh/
@@ -1375,7 +1410,6 @@ full_setup() {
         # enable syncthing user service
         systemctl --user enable syncthing.service
 
-        sudo ln -sf /usr/bin/vim /usr/bin/vi
     fi
 
     print_msg "$GREEN" "========================================"
