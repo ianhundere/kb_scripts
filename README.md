@@ -91,8 +91,12 @@ Options:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `BORG_REPO` | Yes | - | Borg repository path (user@host:repo) |
-| `BORG_PASSPHRASE` | Yes | - | Repository encryption passphrase |
+| `BORG_PASSPHRASE_HOME` | Yes | - | Encryption passphrase for home backup repository |
+| `BORG_PASSPHRASE_SYS` | Yes | - | Encryption passphrase for system backup repository |
+| `BORG_REPO_HOME` | Yes | - | Repository path for home backups |
+| `BORG_REPO_SYS` | Yes | - | Repository path for system snapshots |
+| `BORG_REPO_FULL` | Yes | - | Repository for full drive backups |
+| `BACKUP_DRIVE` | No | - | Path to external backup drive (for full drive backups) |
 | `RESTORE_USER` | No | `$USER` | Username to restore for |
 | `DRY_RUN` | No | `false` | Set to `true` for test run |
 
@@ -102,7 +106,7 @@ Options:
 - KDE: plasma-meta, dolphin, konsole, kate, etc.
 - Desktop apps: Firefox, VS Code, Obsidian, Signal, Discord, Calibre, fastfetch, etc.
 - Audio: Pipewire stack, VLC, Kdenlive, etc.
-- Music production: wine-staging, winetricks, picard, jack2, rtirq, etc.
+- Music production: wine-staging, winetricks, picard, pipewire-jack, rtirq, etc.
 - Hardware: TLP, thinkfan, AMD drivers, fingerprint, etc.
 - Languages: Python, Go, Rust, Docker, kubectl, etc.
 - AUR: bitwig-studio, yabridge-bin, ocenaudio-bin, sononym, mission-center, piper-tts-bin, etc.
@@ -647,76 +651,59 @@ Log out and log back in for changes to apply (or restart Plasma shell with `kqui
 
 # Backup Scheduling
 
-Automated backup scheduling and Timeshift configuration.
+Automated backup scheduling for Borg and Timeshift, including mutual exclusion.
 
 ## Backup Scripts (~/bin)
 
-Automated Borg backup scripts with credential security:
+Automated Borg backup scripts:
 - **backup_t14s_home** - Home directory backups
 - **backup_t14s_sys** - System snapshot backups
-- **backup_full_sys** - External drive backups
+- **backup_full_sys** - External drive backups (requires `BACKUP_DRIVE` env var)
 
-All scripts require environment variables - no hardcoded credentials.
+All scripts use environment variables for credentials and will exit if required variables are not set.
 
-## User Crontab (Secure)
+## Cron Automation
 
-**File**: `cron-systemd/crontab-secure.example`
+### User Crontab (Hourly Home Backup)
 
-Schedule:
-- Home backup: Daily at 2 AM
-- System backup: Daily at 3 AM
-- Full drive backup: Weekly on Sunday at 4 AM
+Your user's crontab now includes:
+- **Home backup**: Hourly (at :00) for `backup_t14s_home`, logs to `~/.cache/borg_home.log`.
+  ```bash
+  0 * * * * . ~/.config/borg/env && ~/bin/backup_t14s_home >> ~/.cache/borg_home.log 2>&1
+  ```
 
-## System Cron Jobs
+### System Crontab (Timeshift & Daily System Backup)
 
-**cron-systemd/timeshift_hourly.cron** - Hourly Timeshift checks
-- Runs every hour at 30 past
-- Skips if Borg backup is running
-- Install: `sudo cp cron-systemd/timeshift_hourly.cron /etc/cron.d/timeshift_hourly`
+The system's root crontab and `/etc/cron.d/` files are configured:
 
-**cron-systemd/timeshift_boot.cron** - Timeshift on boot
-- Creates snapshot 10 minutes after boot
-- Skips if Borg backup is running
-- Install: `sudo cp cron-systemd/timeshift_boot.cron /etc/cron.d/timeshift_boot`
+1.  **Timeshift (Hourly & On-boot)**:
+    *   `/etc/cron.d/timeshift-boot`: Creates a snapshot 10m after boot.
+    *   `/etc/cron.d/timeshift-hourly`: Creates/checks snapshots hourly (at :30).
+    *   **Mutual Exclusion:** Both Timeshift jobs now include a check to skip if any Borg backup is detected as running.
 
-## Secure Setup
+2.  **System Backup (Daily)**:
+    *   `0 3 * * * . /home/ianfundere/.config/borg/env && /home/ianfundere/bin/backup_t14s_sys >> /var/log/borg_sys.log 2>&1`
+    *   Runs daily at 03:00 AM for `backup_t14s_sys`, logs to `/var/log/borg_sys.log`.
+    *   **Mutual Exclusion:** This job skips if Timeshift is detected as running.
 
-Use the wrapper script method to keep credentials secure:
+## Secure Credentials Setup
+
+Credentials for Borg backups are stored securely in an environment file.
 
 **Setup:**
 
-1. Copy credentials file:
-   ```bash
-   cd cron-systemd
-   cp borg_credentials.example ~/.borg_credentials
-   nano ~/.borg_credentials  # Edit with your actual credentials
-   chmod 600 ~/.borg_credentials
-   ```
+1.  **Edit `~/.config/borg/env`**: This file was created with restricted permissions (`chmod 600`).
+    ```bash
+    nano ~/.config/borg/env
+    ```
+    Fill in the placeholders for:
+    *   `BORG_PASSPHRASE_HOME`
+    *   `BORG_PASSPHRASE_SYS`
+    *   `BORG_REPO_HOME`
+    *   `BORG_REPO_SYS`
+    *   (Optionally) `BORG_REPO_FULL` if using `backup_full_sys`.
 
-2. Install wrapper script:
-   ```bash
-   cp backup-wrapper.sh ~/bin/
-   chmod +x ~/bin/backup-wrapper.sh
-   ```
-
-3. Install secure crontab:
-   ```bash
-   crontab crontab-secure.example
-   ```
-
-The wrapper script sources credentials from `~/.borg_credentials` (mode 600) and executes the backup script, keeping credentials out of crontab and backup scripts.
-
-## Backup Script Environment Variables
-
-The backup scripts in `~/bin/` require these environment variables:
-
-- `BORG_PASSPHRASE` - Borg encryption passphrase
-- `BORG_REPO` - Repository for home backups
-- `BORG_REPO_SYS` - Repository for system backups
-- `BORG_REPO_FULL` - Repository for full drive backups
-- `BACKUP_DRIVE` - Path to external backup drive
-
-Scripts will exit with an error if these are not set.
+    The cron jobs are configured to source this file, providing the necessary environment variables to your backup scripts. This keeps credentials out of crontab entries and the scripts themselves.
 
 ---
 
