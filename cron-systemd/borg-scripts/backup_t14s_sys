@@ -28,11 +28,11 @@ backup() {
       --show-rc \
       --compression lz4 \
       --exclude-caches \
-      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/home/' \
-      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/var/cache/' \
-      --exclude '/mnt/timeshift/timeshift/snapshots/**/localhost/var/tmp/' \
+      --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/home/' \
+      --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/var/cache/' \
+      --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/var/tmp/' \
       "$uri"::"$name-$date" \
-      /mnt/timeshift/timeshift/**
+      /run/timeshift/backup/timeshift/**
     info "Pruning repository"
     $BORG prune \
       --list \

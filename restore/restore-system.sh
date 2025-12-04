@@ -61,6 +61,25 @@ cleanup_temp() {
     [[ -n "$temp_dir" && -d "$temp_dir" ]] && rm -rf "$temp_dir"
 }
 
+# Ensure ~/bin directory exists (idempotent, safe to call multiple times)
+ensure_bin_dir() {
+    mkdir -p ~/bin
+}
+
+# Execute a function in a temporary directory with automatic cleanup
+# Usage: with_temp_dir function_name [args...]
+with_temp_dir() {
+    local temp_dir=$(mktemp -d)
+    local func="$1"
+    shift
+
+    (
+        trap "cleanup_temp '$temp_dir'" EXIT
+        cd "$temp_dir"
+        "$func" "$temp_dir" "$@"
+    )
+}
+
 wait_for_process_exit() {
     local process_name="$1"
     local max_wait="${2:-10}"
@@ -197,6 +216,8 @@ restore_shell_config() {
 }
 
 restore_kde_config() {
+    # Restores KDE config from Borg backup (automated, non-interactive)
+    # For manual/interactive KDE restore, use: ../kde-plasma/restore-plasma-settings.sh
     print_msg "$BLUE" "Restoring KDE Configuration & Data..."
     check_passphrase
 
@@ -390,7 +411,7 @@ restore_data() {
 
     # create performance toggle scripts
     if [[ "$DRY_RUN" != "true" ]]; then
-        mkdir -p ~/bin
+        ensure_bin_dir
 
         cat > ~/bin/perf-mode <<'PERFEOF'
 #!/bin/bash
@@ -546,14 +567,15 @@ install_music_production() {
     fi
 
     # Configure rtirq for audio interrupt priority
-    run_cmd "would configure rtirq for audio priority" \
-        sudo tee /etc/rtirq.conf > /dev/null <<'EOF'
-# Audio interrupt priority configuration
-RTIRQ_NAME_LIST="snd_hda_intel usb i8042"
-RTIRQ_PRIO_HIGH=90
-RTIRQ_PRIO_DECR=5
-RTIRQ_RESET_ALL=0
-EOF
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local rtirq_config="$script_dir/../audio/rtirq.conf"
+
+    if [[ -f "$rtirq_config" ]]; then
+        run_cmd "configure rtirq for audio priority" \
+            sudo cp "$rtirq_config" /etc/rtirq.conf
+    else
+        log_warning "rtirq config not found: $rtirq_config"
+    fi
 
     # Enable rtirq service
     if [[ "$DRY_RUN" != "true" ]]; then
@@ -597,162 +619,25 @@ EOF
 fix_desktop_icons() {
     print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local icon_fix_script="$script_dir/../kde-plasma/fix-app-icons.sh"
+
+    if [[ ! -f "$icon_fix_script" ]]; then
+        log_warning "Icon fix script not found: $icon_fix_script"
+        return 1
+    fi
+
     if [[ "$DRY_RUN" = "true" ]]; then
-        print_msg "$BLUE" "[DRY RUN] Would create ~/bin/fix-app-icons.sh and run it"
+        print_msg "$BLUE" "[DRY RUN] Would copy and run fix-app-icons.sh"
         return 0
     fi
 
-    mkdir -p ~/bin
+    ensure_bin_dir
 
-    # Create the standalone fix script
-    cat > ~/bin/fix-app-icons.sh <<'FIXEOF'
-#!/bin/bash
-set -e
-
-# Colors
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-print_msg() { echo -e "${1}${@:2}${NC}"; }
-
-print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
-
-mkdir -p ~/.local/share/applications
-
-# signal desktop file fix (wayland)
-cat > ~/.local/share/applications/signal.desktop <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Signal
-Comment=Signal - Private Messenger
-Icon=signal-desktop
-Exec=signal-desktop -- %u
-Terminal=false
-Categories=Network;InstantMessaging;
-StartupWMClass=signal
-MimeType=x-scheme-handler/sgnl;x-scheme-handler/signalcaptcha;
-Keywords=sgnl;chat;im;messaging;messenger;security;privat;
-X-GNOME-UsesNotifications=true
-EOF
-print_msg "$GREEN" "✓ Signal desktop file created" 
-
-# bitwig studio desktop file fix (x11)
-# startupwmclass must match java class name
-if command -v bitwig-studio-beta &>/dev/null; then
-    cat > ~/.local/share/applications/com.bitwig.BitwigStudioBeta.desktop <<'EOF'
-[Desktop Entry]
-Version=1.5
-Type=Application
-Name=Bitwig Studio Beta
-GenericName=Digital Audio Workstation
-Comment=Modern music production and performance
-Icon=com.bitwig.BitwigStudioBeta
-Exec=bitwig-studio-beta
-Terminal=false
-MimeType=application/bitwig-beta-clip;application/bitwig-beta-device;application/bitwig-beta-package;application/bitwig-beta-preset;application/bitwig-beta-project;application/bitwig-beta-scene;application/bitwig-beta-template;application/bitwig-beta-extension;application/bitwig-beta-remote-controls;application/bitwig-beta-module;application/bitwig-beta-modulator;application/vnd.bitwig.dawproject
-Categories=AudioVideo;Music;Audio;Sequencer;Midi;Mixer;Player;Recorder
-Keywords=daw;bitwig;audio;midi
-StartupNotify=true
-StartupWMClass=com.bitwig.BitwigStudio
-EOF
-    print_msg "$GREEN" "✓ Bitwig Studio Beta desktop file created"
-elif command -v bitwig-studio &>/dev/null; then
-    cat > ~/.local/share/applications/com.bitwig.BitwigStudio.desktop <<'EOF'
-[Desktop Entry]
-Version=1.5
-Type=Application
-Name=Bitwig Studio
-GenericName=Digital Audio Workstation
-Comment=Modern music production and performance
-Icon=com.bitwig.BitwigStudio
-Exec=bitwig-studio
-Terminal=false
-MimeType=application/bitwig-clip;application/bitwig-device;application/bitwig-package;application/bitwig-preset;application/bitwig-project;application/bitwig-scene;application/bitwig-template;application/bitwig-extension;application/bitwig-remote-controls;application/bitwig-module;application/bitwig-modulator;application/vnd.bitwig.dawproject
-Categories=AudioVideo;Music;Audio;Sequencer;Midi;Mixer;Player;Recorder
-Keywords=daw;bitwig;audio;midi
-StartupNotify=true
-StartupWMClass=com.bitwig.BitwigStudio
-EOF
-    print_msg "$GREEN" "✓ Bitwig Studio desktop file created"
-fi
-
-# proton mail bridge desktop file fix (wayland flatpak)
-# desktop file name must match window resourceClass: ch.proton.bridge-gui
-if flatpak list 2>/dev/null | grep -q "ch.protonmail.protonmail-bridge"; then
-    cat > ~/.local/share/applications/ch.proton.bridge-gui.desktop <<'EOF'
-[Desktop Entry]
-Type=Application
-Version=1.1
-Name=Proton Mail Bridge
-GenericName=Proton Mail Bridge for Linux
-Comment=Proton Mail Bridge is a desktop application that runs in the background, encrypting and decrypting messages as they enter and leave your computer.
-Icon=ch.protonmail.protonmail-bridge
-Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonmail-bridge ch.protonmail.protonmail-bridge
-Terminal=false
-Categories=Office;Email;
-StartupWMClass=ch.proton.bridge-gui
-StartupNotify=true
-X-Desktop-File-Install-Version=0.28
-X-Flatpak=ch.protonmail.protonmail-bridge
-EOF
-    print_msg "$GREEN" "✓ Proton Mail Bridge desktop file created"
-fi
-
-# proton vpn desktop file fix (wayland flatpak)
-# desktop file name must match window resourceClass: protonvpn-app
-if flatpak list 2>/dev/null | grep -q "com.protonvpn.www"; then
-    cat > ~/.local/share/applications/protonvpn-app.desktop <<'EOF'
-[Desktop Entry]
-Name=Proton VPN
-Exec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=protonvpn-app --file-forwarding com.protonvpn.www @@u %u @@
-Terminal=false
-Type=Application
-Icon=com.protonvpn.www
-StartupWMClass=protonvpn-app
-StartupNotify=true
-Comment=Proton VPN GUI client
-Categories=Network;
-X-Desktop-File-Install-Version=0.28
-X-Flatpak=com.protonvpn.www
-EOF
-    print_msg "$GREEN" "✓ Proton VPN desktop file created"
-fi
-
-# RCU (reMarkable Connection Utility) fix
-if [[ -f ~/.local/bin/rcu ]]; then
-    # Ensure icon is in the right place
-    mkdir -p ~/.local/share/icons
-    if [[ -f ~/.local/share/applications/davisr-rcu.png ]]; then
-        cp ~/.local/share/applications/davisr-rcu.png ~/.local/share/icons/davisr-rcu.png
-        rm -f ~/.local/share/applications/davisr-rcu.png  # clean up orphaned icon
-    fi
-
-    # Desktop file name and StartupWMClass must match resourceClass: me.davisr.rcu
-    cat > ~/.local/share/applications/me.davisr.rcu.desktop <<EOF
-[Desktop Entry]
-Type=Application
-Name=RCU
-Comment=Manage your reMarkable tablet
-Exec=$HOME/.local/bin/rcu
-Icon=$HOME/.local/share/icons/davisr-rcu.png
-StartupWMClass=me.davisr.rcu
-Terminal=false
-Categories=Utility;
-Version=1.0
-EOF
-
-    rm -f ~/.local/share/applications/davisr-rcu.desktop 2>/dev/null
-
-    print_msg "$GREEN" "✓ RCU desktop file created"
-fi
-
-update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
-print_msg "$GREEN" "Desktop icon fixes applied!"
-FIXEOF
-
+    # Copy the fix script to ~/bin/
+    cp "$icon_fix_script" ~/bin/fix-app-icons.sh
     chmod +x ~/bin/fix-app-icons.sh
-    print_msg "$GREEN" "✓ Created ~/bin/fix-app-icons.sh"
+    print_msg "$GREEN" "✓ Copied fix-app-icons.sh to ~/bin/"
 
     # Run the script
     ~/bin/fix-app-icons.sh
@@ -920,20 +805,15 @@ setup_backup_tools() {
 
     local borg_scripts_dir="$script_dir/../cron-systemd/borg-scripts"
     if [[ -d "$borg_scripts_dir" ]]; then
-        mkdir -p ~/bin
+        ensure_bin_dir
 
-        # Copy scripts
-        cp "$borg_scripts_dir/backup-wrapper.sh" ~/bin/
-        cp "$borg_scripts_dir/backup_t14s_home" ~/bin/
-        cp "$borg_scripts_dir/backup_t14s_sys" ~/bin/
-        cp "$borg_scripts_dir/backup_full_sys" ~/bin/
+        # NOTE: Backup scripts are maintained in ~/bin (not restored by this script)
+        # Repo has Arch-compatible versions at: cron-systemd/borg-scripts/
+        # To restore them manually: cp cron-systemd/borg-scripts/backup* ~/bin/
 
-        # Make them executable
-        chmod +x ~/bin/backup-wrapper.sh
-        chmod +x ~/bin/backup_t14s_home
-        chmod +x ~/bin/backup_t14s_sys
-        chmod +x ~/bin/backup_full_sys
-        print_msg "$GREEN" "✓ Copied Borg backup scripts to ~/bin/"
+        # Make existing scripts in ~/bin executable
+        chmod +x ~/bin/backup* 2>/dev/null || true
+        print_msg "$GREEN" "✓ Backup scripts in ~/bin ready (not overwritten)"
 
         # Install borg-home cron job
         local borg_cron_file="$borg_scripts_dir/borg-home.cron"
@@ -948,7 +828,6 @@ setup_backup_tools() {
     fi
 
     print_msg "$GREEN" "Backup tools configured!"
-}
 }
 
 # --- HARDWARE SETUP ---
@@ -977,15 +856,16 @@ setup_t14s_hardware() {
     sudo mkdir -p /etc/keyd
 
     if [[ ! -f /etc/keyd/default.conf ]]; then
-        sudo tee /etc/keyd/default.conf > /dev/null <<'EOF'
-[ids]
-*
-0001:0001
-[main]
-backspace = backslash
-backslash = backspace
-EOF
-        sudo systemctl restart keyd
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local keyd_config="$script_dir/../kde-plasma/default.conf"
+
+        if [[ -f "$keyd_config" ]]; then
+            sudo cp "$keyd_config" /etc/keyd/default.conf
+            sudo systemctl restart keyd
+            print_msg "$GREEN" "✓ Installed keyd keyboard remap config"
+        else
+            log_warning "keyd config not found: $keyd_config"
+        fi
     else
         print_msg "$YELLOW" "keyd config already exists, skipping..."
     fi
@@ -1039,150 +919,33 @@ EOF
         return 0
     fi
 
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local tlp_config="$script_dir/../performance/tlp.conf"
+
+    if [[ ! -f "$tlp_config" ]]; then
+        log_warning "TLP config not found: $tlp_config"
+        return 1
+    fi
+
     if [[ -f /etc/tlp.conf ]]; then
         sudo mv /etc/tlp.conf /etc/tlp.conf.bak.$(date +%s)
     fi
     print_msg "$YELLOW" "Installing optimized TLP config..."
-    sudo tee /etc/tlp.conf > /dev/null <<'TLPEOF'
-# TLP Configuration for ThinkPad T14s AMD Gen 1
-# TLP 1.9.0 - Three Power Profile System
-#
-# Profiles:
-#   - Performance (AC): _AC suffix - when on AC power or manually selected
-#   - Balanced (BAT):   _BAT suffix - when on battery or manually selected
-#   - Power-Saver (SAV): _SAV suffix - maximum battery savings (NEW in 1.9.0)
-#
-# Switch profiles via GUI: tlpui or desktop power settings
+    sudo cp "$tlp_config" /etc/tlp.conf
 
-TLP_ENABLE=1
-TLP_DEFAULT_MODE=BAT
+    # 5. Thinkfan Configuration (T14s AMD optimized)
+    local thinkfan_config="$script_dir/../performance/thinkfan.yaml"
 
-# CPU Scaling Governor
-# performance: maximum frequency | powersave: dynamic scaling
-CPU_SCALING_GOVERNOR_ON_AC=performance
-CPU_SCALING_GOVERNOR_ON_BAT=powersave
-CPU_SCALING_GOVERNOR_ON_SAV=powersave
+    if [[ ! -f "$thinkfan_config" ]]; then
+        log_warning "Thinkfan config not found: $thinkfan_config"
+        return 1
+    fi
 
-# CPU Energy/Performance Policy (EPP)
-# performance: max performance | balance_performance: balanced | power: max savings
-CPU_ENERGY_PERF_POLICY_ON_AC=performance
-CPU_ENERGY_PERF_POLICY_ON_BAT=balance_performance
-CPU_ENERGY_PERF_POLICY_ON_SAV=power
-
-# CPU Turbo Boost
-# 1: enabled | 0: disabled
-CPU_BOOST_ON_AC=1
-CPU_BOOST_ON_BAT=0
-CPU_BOOST_ON_SAV=0
-
-# CPU Hardware P-State Dynamic Boost
-# 1: enabled | 0: disabled
-CPU_HWP_DYN_BOOST_ON_AC=1
-CPU_HWP_DYN_BOOST_ON_BAT=0
-CPU_HWP_DYN_BOOST_ON_SAV=0
-
-# Scheduler Power Save
-# 0: disabled | 1: enabled
-SCHED_POWERSAVE_ON_AC=0
-SCHED_POWERSAVE_ON_BAT=1
-SCHED_POWERSAVE_ON_SAV=1
-
-# NMI Watchdog (disable for power savings)
-NMI_WATCHDOG=0
-
-# Platform Profile (ACPI platform driver)
-# performance | balanced | low-power | quiet | cool
-PLATFORM_PROFILE_ON_AC=performance
-PLATFORM_PROFILE_ON_BAT=low-power
-PLATFORM_PROFILE_ON_SAV=low-power
-
-# Disk Idle Time (seconds before disk spindown)
-DISK_IDLE_SECS_ON_AC=0
-DISK_IDLE_SECS_ON_BAT=2
-DISK_IDLE_SECS_ON_SAV=2
-
-# Max Lost Work (seconds of data buffered for write)
-MAX_LOST_WORK_SECS_ON_AC=15
-MAX_LOST_WORK_SECS_ON_BAT=15
-MAX_LOST_WORK_SECS_ON_SAV=60
-
-# WiFi Power Management
-# off: disabled | on: enabled
-WIFI_PWR_ON_AC=off
-WIFI_PWR_ON_BAT=on
-WIFI_PWR_ON_SAV=on
-
-# Wake on LAN
-WOL_DISABLE=Y
-
-# Audio Power Save
-# 0: disabled | 1: enabled (with 1 second timeout)
-SOUND_POWER_SAVE_ON_AC=0
-SOUND_POWER_SAVE_ON_BAT=1
-SOUND_POWER_SAVE_ON_SAV=1
-
-# PCIe Active State Power Management
-# default | performance | powersave | powersupersave
-PCIE_ASPM_ON_AC=default
-PCIE_ASPM_ON_BAT=powersupersave
-PCIE_ASPM_ON_SAV=powersupersave
-
-# Runtime Power Management
-# on: enabled | auto: automatic | default: kernel default
-RUNTIME_PM_ON_AC=on
-RUNTIME_PM_ON_BAT=auto
-RUNTIME_PM_ON_SAV=auto
-
-# USB Autosuspend
-USB_AUTOSUSPEND=1
-USB_DENYLIST="04f2:b67c 8087:0026"
-USB_EXCLUDE_BTUSB=1
-USB_EXCLUDE_PHONE=1
-
-# Device State on Startup
-RESTORE_DEVICE_STATE_ON_STARTUP=0
-
-DEVICES_TO_DISABLE_ON_STARTUP="bluetooth wwan nfc"
-DEVICES_TO_ENABLE_ON_STARTUP="wifi"
-
-DEVICES_TO_DISABLE_ON_BAT_NOT_IN_USE="bluetooth wwan nfc"
-
-# Battery Charge Thresholds (ThinkPad)
-# Start charging at 40%, stop at 80% for battery longevity
-START_CHARGE_THRESH_BAT0=40
-STOP_CHARGE_THRESH_BAT0=80
-
-RESTORE_THRESHOLDS_ON_BAT=1
-
-# ThinkPad Battery Features
-NATACPI_ENABLE=1
-TPACPI_ENABLE=1
-TPSMAPI_ENABLE=0
-TLPEOF
-
-    # 5. Thinkfan Configuration (Embedded - T14s AMD optimized)
     if [[ -f /etc/thinkfan.yaml ]]; then
         sudo mv /etc/thinkfan.yaml /etc/thinkfan.yaml.bak.$(date +%s)
     fi
     print_msg "$YELLOW" "Installing optimized Thinkfan config..."
-    sudo tee /etc/thinkfan.yaml > /dev/null <<'THINKFANEOF'
-sensors:
-  - tpacpi: /proc/acpi/ibm/thermal
-
-fans:
-  - tpacpi: /proc/acpi/ibm/fan
-
-levels:
-  - [0, 0, 45]
-  - [1, 40, 50]
-  - [2, 45, 55]
-  - [3, 50, 60]
-  - [4, 55, 65]
-  - [5, 60, 70]
-  - [6, 65, 75]
-  - [7, 70, 85]
-  - ["level auto", 80, 255]
-THINKFANEOF
+    sudo cp "$thinkfan_config" /etc/thinkfan.yaml
 
     # 6. amd p-state driver check (optional - better for ryzen mobile)
     if ! grep -q "amd_pstate=active" /etc/default/grub 2>/dev/null; then
@@ -1226,21 +989,17 @@ setup_security() {
     fi
 
     # Create hardening config in sshd_config.d
-    sudo tee /etc/ssh/sshd_config.d/99-hardening.conf > /dev/null <<EOF
-# SSH Server Hardening Configuration
-# File: /etc/ssh/sshd_config.d/99-hardening.conf
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local ssh_config="$script_dir/../security/sshd-hardening.conf"
 
-# Disable root login
-PermitRootLogin no
+    if [[ ! -f "$ssh_config" ]]; then
+        log_warning "SSH hardening config not found: $ssh_config"
+        return 1
+    fi
 
-# Disable password authentication (use SSH keys only)
-PasswordAuthentication no
-ChallengeResponseAuthentication no
-PermitEmptyPasswords no
-
-# Only allow specific users
-AllowUsers "$RESTORE_USER"
-EOF
+    # Replace $RESTORE_USER variable in config
+    sed "s/\$RESTORE_USER/$RESTORE_USER/g" "$ssh_config" | \
+        sudo tee /etc/ssh/sshd_config.d/99-hardening.conf > /dev/null
 
     # Test configuration
     if sudo sshd -t 2>/dev/null; then
@@ -1293,16 +1052,15 @@ setup_audio_lowlatency() {
 
     # Create ALSA default device config
     if [[ ! -f ~/.asoundrc ]]; then
-        cat > ~/.asoundrc <<'EOF'
-pcm.!default {
-    type pipewire
-}
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local asoundrc="$script_dir/../audio/asoundrc"
 
-ctl.!default {
-    type pipewire
-}
-EOF
-        print_msg "$GREEN" "✓ ALSA default device configured"
+        if [[ -f "$asoundrc" ]]; then
+            cp "$asoundrc" ~/.asoundrc
+            print_msg "$GREEN" "✓ ALSA default device configured"
+        else
+            log_warning "asoundrc config not found: $asoundrc"
+        fi
     fi
 
     # Set audio card to HiFi profile (if not in pro-audio mode)
@@ -1441,17 +1199,16 @@ full_setup() {
     setup_security
     fix_desktop_icons
 
+    # languages & containers
+    install_pkgs "languages & containers" \
+        python python-pip go rust docker docker-compose kubectl npm github-cli
+
     if [[ "$DRY_RUN" = "true" ]]; then
-        print_msg "$BLUE" "[DRY RUN] Would install languages & containers"
+        print_msg "$BLUE" "[DRY RUN] Would add user to docker group and enable services"
     else
-        # languages & containers
-        sudo pacman -S --needed --noconfirm python python-pip go rust docker docker-compose kubectl npm github-cli
         sudo usermod -aG docker "$RESTORE_USER"
         sudo systemctl enable docker
-
-        # enable syncthing user service
         systemctl --user enable syncthing.service
-
     fi
 
     print_msg "$GREEN" "========================================"

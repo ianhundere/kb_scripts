@@ -100,7 +100,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}Restarting plasmashell...${NC}"
     killall plasmashell 2>/dev/null || true
     sleep 2
-    kstart5 plasmashell &
+    kstart6 plasmashell &
     echo -e "${GREEN}Plasmashell restarted!${NC}"
 else
     echo -e "${YELLOW}Please restart plasmashell manually or log out and back in to apply changes.${NC}"
