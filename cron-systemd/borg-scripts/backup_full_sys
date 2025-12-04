@@ -3,8 +3,8 @@
 info() { printf "\n%s %s\n\n" "$(date)" "$*" >&1; }
 
 backup() {
-  : ${BORG:=borg}
-  : ${PASS:=}
+  : "${BORG:=borg}"
+  : "${PASS:=}"
   local uri="$1"
 
   if [ -n "$PASS" ]; then
@@ -15,7 +15,8 @@ backup() {
 
   local prunning="--keep-within 2d --keep-daily 1 --keep-weekly 1 --keep-monthly 3 --keep-yearly 1"
   local name=t14s_full_sys_clone
-  local date=$(date "+%F-%T")
+  local date
+  date=$(date "+%F-%T")
 
   info "Starting backup with $BORG to $uri"
   $BORG create \
@@ -27,14 +28,14 @@ backup() {
     --show-rc \
     --compression lz4 \
     --exclude-caches \
-    "$uri"::"$name-$date" \
+    "$uri::$name-$date" \
     "$BACKUP_DRIVE"/**
   info "Pruning repository"
   $BORG prune \
     --list \
     --glob-archives "$name-" \
     --show-rc \
-    $prunning \
+    "$prunning" \
     "$uri"
 }
 # Set these environment variables before running:

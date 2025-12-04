@@ -1,0 +1,43 @@
+# System restore logs
+restore-system.log
+*.log
+
+# Backup files
+*.bak
+*.backup
+*.backup.*
+*~
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# KDE Plasma backup directories
+kde-plasma/backup-*/
+.config-backup-*/
+
+# Borg repository files (if testing locally)
+*.borg
+borg-backup/
+
+# Editor files
+.vscode/
+.idea/
+*.kate-swp
+
+# OS-specific
+.DS_Store
+Thumbs.db
+.Trash-*/
+
+# Credentials (safety)
+*credentials*
+!*credentials.example
+.borg_credentials
+
+# Test output
+test-results/
+coverage/

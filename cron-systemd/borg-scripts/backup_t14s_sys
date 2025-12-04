@@ -3,8 +3,8 @@
 info() { printf "\n%s %s\n\n" "$(date)" "$*" >&1; }
 
 backup() {
-  : ${BORG:=borg}
-  : ${PASS:=${BORG_PASSPHRASE_SYS:=}}
+  : "${BORG:=borg}"
+  : "${PASS:=${BORG_PASSPHRASE_SYS:=}}"
   local uri="${BORG_REPO_SYS}"
 
   if [[ -n "$PASS" ]]; then
@@ -15,7 +15,8 @@ backup() {
 
   local prunning="--keep-within 2d --keep-daily 1 --keep-weekly 3 --keep-monthly 3 --keep-yearly 1"
   local name=t14s_sys
-  local date=$(date "+%F-%T")
+  local date
+  date=$(date "+%F-%T")
 
   if [[ $(pidof timeshift | wc -w) == 0 ]]; then
     info "Starting backup with $BORG to $uri"
@@ -31,14 +32,14 @@ backup() {
       --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/home/' \
       --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/var/cache/' \
       --exclude '/run/timeshift/backup/timeshift/snapshots/**/localhost/var/tmp/' \
-      "$uri"::"$name-$date" \
+      "$uri::$name-$date" \
       /run/timeshift/backup/timeshift/**
     info "Pruning repository"
     $BORG prune \
       --list \
       --glob-archives "$name-" \
       --show-rc \
-      $prunning \
+      "$prunning" \
       "$uri"
   else
     info "Timeshift is running or is about to run, exiting..."

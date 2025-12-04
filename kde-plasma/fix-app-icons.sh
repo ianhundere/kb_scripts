@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-print_msg() { echo -e "${1}${@:2}${NC}"; }
+print_msg() { echo -e "${1}${*:2}${NC}"; }
 
 print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 

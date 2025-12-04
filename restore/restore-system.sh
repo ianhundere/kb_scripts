@@ -6,7 +6,7 @@
 set -e
 
 # --- CONFIGURATION ---
-BORG_REPO="${BORG_REPO}"
+BORG_REPO="${BORG_REPO:-}"
 RESTORE_USER="${RESTORE_USER:-$USER}"
 DRY_RUN="${DRY_RUN:-false}"
 
@@ -22,7 +22,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # --- HELPERS ---
-print_msg() { echo -e "${1}${@:2}${NC}"; }
+print_msg() { echo -e "${1}${*:2}${NC}"; }
 
 log_error() {
     print_msg "$RED" "ERROR: $1"
@@ -48,7 +48,8 @@ check_passphrase() {
 }
 
 get_latest_archive() {
-    local archive=$(borg list "$BORG_REPO" --last 1 --short 2>/dev/null | tail -1)
+    local archive
+    archive=$(borg list "$BORG_REPO" --last 1 --short 2>/dev/null | tail -1)
     if [[ -z "$archive" ]]; then
         log_error "No backups found in repository: $BORG_REPO"
         exit 1
@@ -66,25 +67,11 @@ ensure_bin_dir() {
     mkdir -p ~/bin
 }
 
-# Execute a function in a temporary directory with automatic cleanup
-# Usage: with_temp_dir function_name [args...]
-with_temp_dir() {
-    local temp_dir=$(mktemp -d)
-    local func="$1"
-    shift
-
-    (
-        trap "cleanup_temp '$temp_dir'" EXIT
-        cd "$temp_dir"
-        "$func" "$temp_dir" "$@"
-    )
-}
-
 wait_for_process_exit() {
     local process_name="$1"
     local max_wait="${2:-10}"
 
-    for i in $(seq 1 $max_wait); do
+    for _ in $(seq 1 "$max_wait"); do
         if ! pgrep "$process_name" >/dev/null 2>&1; then
             return 0
         fi
@@ -161,9 +148,11 @@ restore_shell_config() {
     print_msg "$BLUE" "Restoring Shell (zsh/p10k)..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+    local temp_dir
+    archive=$(get_latest_archive)
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp "$temp_dir"' RETURN
     cd "$temp_dir"
 
     safe_extract "$BORG_REPO" "$archive" \
@@ -197,11 +186,13 @@ restore_shell_config() {
     # Ensure vi alias and editor exports exist in .zshrc
     if [[ -f ~/.zshrc ]]; then
         if ! grep -q "alias vi=\"vim\"" ~/.zshrc; then
-             echo "" >> ~/.zshrc
-             echo "# Editor Config" >> ~/.zshrc
-             echo "alias vi=\"vim\"" >> ~/.zshrc
-             echo "export EDITOR=\"vim\"" >> ~/.zshrc
-             echo "export VISUAL=\"vim\"" >> ~/.zshrc
+             {
+                 echo ""
+                 echo "# Editor Config"
+                 echo "alias vi=\"vim\""
+                 echo "export EDITOR=\"vim\""
+                 echo "export VISUAL=\"vim\""
+             } >> ~/.zshrc
              print_msg "$GREEN" "✓ Added vim alias/exports to .zshrc"
         fi
     fi
@@ -221,9 +212,11 @@ restore_kde_config() {
     print_msg "$BLUE" "Restoring KDE Configuration & Data..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+    local temp_dir
+    archive=$(get_latest_archive)
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp "$temp_dir"' RETURN
     cd "$temp_dir"
 
     # critical kde files
@@ -269,9 +262,12 @@ restore_misc_configs() {
     print_msg "$BLUE" "Restoring Git, SSH, GPG, Dev Environments..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+
+    archive=$(get_latest_archive)
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp \"$temp_dir\"' RETURN
     cd "$temp_dir"
 
     safe_extract "$BORG_REPO" "$archive" \
@@ -316,7 +312,7 @@ restore_misc_configs() {
     fi
 
     if [[ -d "home/$RESTORE_USER/.gnupg" ]]; then
-        [[ -d ~/.gnupg ]] && mv ~/.gnupg ~/.gnupg.bak.$(date +%s)
+        [[ -d ~/.gnupg ]] && mv ~/.gnupg ~/.gnupg.bak."$(date +%s)"
         cp -r "home/$RESTORE_USER/.gnupg" ~/
         chmod 700 ~/.gnupg
     fi
@@ -344,9 +340,12 @@ restore_data() {
     print_msg "$BLUE" "Restoring User Data (bin, Documents, projects, etc.)..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+
+    archive=$(get_latest_archive)
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp \"$temp_dir\"' RETURN
     cd "$temp_dir"
 
     local data_dirs=(
@@ -442,9 +441,12 @@ restore_app_configs() {
     print_msg "$BLUE" "Restoring Application Configs (Calibre, Obsidian, Syncthing, VS Code)..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+
+    archive=$(get_latest_archive)
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp \"$temp_dir\"' RETURN
     cd "$temp_dir"
 
     local app_configs=(
@@ -567,7 +569,9 @@ install_music_production() {
     fi
 
     # Configure rtirq for audio interrupt priority
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local rtirq_config="$script_dir/../audio/rtirq.conf"
 
     if [[ -f "$rtirq_config" ]]; then
@@ -591,7 +595,7 @@ install_music_production() {
                     print_msg "$BLUE" "[DRY RUN] Would add threadirqs to $entry"
                 else
                     sudo sed -i 's/options /options threadirqs /' "$entry"
-                    print_msg "$GREEN" "✓ added threadirqs to $(basename $entry)"
+                    print_msg "$GREEN" "✓ added threadirqs to $(basename "$entry")"
                 fi
             fi
         done
@@ -619,7 +623,10 @@ install_music_production() {
 fix_desktop_icons() {
     print_msg "$BLUE" "Fixing application icons for KDE Wayland/X11..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local icon_fix_script="$script_dir/../kde-plasma/fix-app-icons.sh"
 
     if [[ ! -f "$icon_fix_script" ]]; then
@@ -647,9 +654,12 @@ restore_music_production() {
     print_msg "$BLUE" "Restoring Music Production Config..."
     check_passphrase
 
-    local archive=$(get_latest_archive)
-    local temp_dir=$(mktemp -d)
-    trap "cleanup_temp '$temp_dir'" RETURN
+    local archive
+
+    archive=$(get_latest_archive)
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'cleanup_temp \"$temp_dir\"' RETURN
     cd "$temp_dir"
 
     local music_files=(
@@ -726,8 +736,9 @@ install_yay_and_aur() {
         if [[ "$DRY_RUN" = "true" ]]; then
             print_msg "$BLUE" "[DRY RUN] Would install yay"
         else
-            local temp_dir=$(mktemp -d)
-            trap "cleanup_temp '$temp_dir'" RETURN
+            local temp_dir
+            temp_dir=$(mktemp -d)
+            trap 'cleanup_temp \"$temp_dir\"' RETURN
             cd "$temp_dir"
             git clone https://aur.archlinux.org/yay.git
             cd yay
@@ -775,7 +786,10 @@ setup_backup_tools() {
     # Enable cronie for cron jobs to run
     sudo systemctl enable --now cronie
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local cron_dir="$script_dir/../cron-systemd"
 
     # --- Timeshift Automation ---
@@ -856,7 +870,9 @@ setup_t14s_hardware() {
     sudo mkdir -p /etc/keyd
 
     if [[ ! -f /etc/keyd/default.conf ]]; then
-        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local script_dir
+
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         local keyd_config="$script_dir/../kde-plasma/default.conf"
 
         if [[ -f "$keyd_config" ]]; then
@@ -919,7 +935,10 @@ EOF
         return 0
     fi
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local tlp_config="$script_dir/../performance/tlp.conf"
 
     if [[ ! -f "$tlp_config" ]]; then
@@ -928,7 +947,7 @@ EOF
     fi
 
     if [[ -f /etc/tlp.conf ]]; then
-        sudo mv /etc/tlp.conf /etc/tlp.conf.bak.$(date +%s)
+        sudo mv /etc/tlp.conf /etc/tlp.conf.bak."$(date +%s)"
     fi
     print_msg "$YELLOW" "Installing optimized TLP config..."
     sudo cp "$tlp_config" /etc/tlp.conf
@@ -942,7 +961,7 @@ EOF
     fi
 
     if [[ -f /etc/thinkfan.yaml ]]; then
-        sudo mv /etc/thinkfan.yaml /etc/thinkfan.yaml.bak.$(date +%s)
+        sudo mv /etc/thinkfan.yaml /etc/thinkfan.yaml.bak."$(date +%s)"
     fi
     print_msg "$YELLOW" "Installing optimized Thinkfan config..."
     sudo cp "$thinkfan_config" /etc/thinkfan.yaml
@@ -985,11 +1004,13 @@ setup_security() {
 
     # Backup existing configs
     if [[ -f /etc/ssh/sshd_config ]]; then
-        sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%s)
+        sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup."$(date +%s)"
     fi
 
     # Create hardening config in sshd_config.d
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local ssh_config="$script_dir/../security/sshd-hardening.conf"
 
     if [[ ! -f "$ssh_config" ]]; then
@@ -1017,7 +1038,10 @@ setup_security() {
 setup_audio_lowlatency() {
     print_msg "$BLUE" "Configuring Low-Latency Audio (PipeWire)..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local audio_config_dir="$script_dir/../audio"
 
     if [[ ! -d "$audio_config_dir" ]]; then
@@ -1052,7 +1076,9 @@ setup_audio_lowlatency() {
 
     # Create ALSA default device config
     if [[ ! -f ~/.asoundrc ]]; then
-        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local script_dir
+
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         local asoundrc="$script_dir/../audio/asoundrc"
 
         if [[ -f "$asoundrc" ]]; then
@@ -1064,7 +1090,8 @@ setup_audio_lowlatency() {
     fi
 
     # Set audio card to HiFi profile (if not in pro-audio mode)
-    local card_profile=$(pactl list cards short 2>/dev/null | grep "pci-0000_07_00.6" || true)
+    local card_profile
+    card_profile=$(pactl list cards short 2>/dev/null | grep "pci-0000_07_00.6" || true)
     if [[ -n "$card_profile" ]]; then
         pactl set-card-profile alsa_card.pci-0000_07_00.6 "HiFi (Mic1, Mic2, Speaker)" 2>/dev/null || true
         print_msg "$GREEN" "✓ Audio card set to HiFi profile"
@@ -1077,7 +1104,8 @@ setup_audio_lowlatency() {
 
     # Verify settings
     if command -v pw-metadata &>/dev/null; then
-        local quantum=$(pw-metadata -n settings 2>/dev/null | grep "clock.quantum" | awk -F"'" '{print $4}')
+        local quantum
+        quantum=$(pw-metadata -n settings 2>/dev/null | grep "clock.quantum" | awk -F"'" '{print $4}')
         if [[ "$quantum" = "128" ]]; then
             print_msg "$GREEN" "✓ Low-latency audio configured (quantum=$quantum @ 48kHz = ~2.67ms)"
         else
@@ -1092,7 +1120,10 @@ setup_audio_lowlatency() {
 setup_performance_optimizations() {
     print_msg "$BLUE" "Applying System Performance Optimizations..."
 
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+
+
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local perf_config_dir="$script_dir/../performance"
 
     if [[ ! -d "$perf_config_dir" ]]; then

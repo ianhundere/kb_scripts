@@ -27,6 +27,7 @@ if [ "$PERMS" != "600" ]; then
     exit 1
 fi
 
+# shellcheck source=/dev/null
 source "$CREDS_FILE"
 
 # Run the backup script passed as argument
