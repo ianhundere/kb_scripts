@@ -40,13 +40,13 @@ backup() {
 # Set these environment variables before running:
 # export BORG_PASSPHRASE='your-passphrase'
 # export BORG_REPO_FULL='user@host:repo'
-# export BACKUP_DRIVE='/media/ianfundere/backup_t7'  # or wherever your backup drive is mounted
+# export BACKUP_DRIVE='/media/$USER/backup_t7'  # or wherever your backup drive is mounted
 
 if [ -z "$BORG_REPO_FULL" ] || [ -z "$BORG_PASSPHRASE" ] || [ -z "$BACKUP_DRIVE" ]; then
   echo "Error: BORG_REPO_FULL, BORG_PASSPHRASE, and BACKUP_DRIVE must be set"
   echo "Run: export BORG_REPO_FULL='user@host:repo'"
   echo "Run: export BORG_PASSPHRASE='your-passphrase'"
-  echo "Run: export BACKUP_DRIVE='/media/ianfundere/backup_t7'"
+  echo "Run: export BACKUP_DRIVE='/media/$USER/backup_t7'"
   exit 1
 fi
 

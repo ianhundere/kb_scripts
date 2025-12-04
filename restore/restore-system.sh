@@ -729,13 +729,13 @@ if [[ -f ~/.local/bin/rcu ]]; then
     fi
 
     # Desktop file name and StartupWMClass must match resourceClass: me.davisr.rcu
-    cat > ~/.local/share/applications/me.davisr.rcu.desktop <<'EOF'
+    cat > ~/.local/share/applications/me.davisr.rcu.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=RCU
 Comment=Manage your reMarkable tablet
-Exec=/home/ianfundere/.local/bin/rcu
-Icon=/home/ianfundere/.local/share/icons/davisr-rcu.png
+Exec=$HOME/.local/bin/rcu
+Icon=$HOME/.local/share/icons/davisr-rcu.png
 StartupWMClass=me.davisr.rcu
 Terminal=false
 Categories=Utility;
@@ -907,7 +907,7 @@ setup_backup_tools() {
             print_msg "$GREEN" "✓ Installed timeshift_hourly cron"
         fi
         if [[ -f "$cron_dir/timeshift.json" ]]; then
-            sudo cp "$cron_dir/timeshift.json" /etc/timeshift/timeshift.json
+            sed "s|\$HOME|$HOME|g" "$cron_dir/timeshift.json" | sudo tee /etc/timeshift/timeshift.json > /dev/null
             sudo chmod 644 /etc/timeshift/timeshift.json
             print_msg "$GREEN" "✓ Installed timeshift.json config"
         fi

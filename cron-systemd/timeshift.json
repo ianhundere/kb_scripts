@@ -20,7 +20,7 @@
   "snapshot_count" : "621155",
   "date_format" : "%Y-%m-%d %H:%M:%S",
   "exclude" : [
-    "/home/ianfundere/**",
+    "$HOME/**",
     "/root/**"
   ],
   "exclude-apps" : []

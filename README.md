@@ -682,7 +682,7 @@ The system's root crontab and `/etc/cron.d/` files are configured:
     *   **Mutual Exclusion:** Both Timeshift jobs now include a check to skip if any Borg backup is detected as running.
 
 2.  **System Backup (Daily)**:
-    *   `0 3 * * * . /home/ianfundere/.config/borg/env && /home/ianfundere/bin/backup_t14s_sys >> /var/log/borg_sys.log 2>&1`
+    *   `0 3 * * * . $HOME/.config/borg/env && $HOME/bin/backup_t14s_sys >> /var/log/borg_sys.log 2>&1`
     *   Runs daily at 03:00 AM for `backup_t14s_sys`, logs to `/var/log/borg_sys.log`.
     *   **Mutual Exclusion:** This job skips if Timeshift is detected as running.
 
